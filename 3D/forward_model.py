@@ -1,3 +1,21 @@
+import numpy as np
+import torch as tc
+tc.set_default_tensor_type(tc.FloatTensor)
+import xraylib as xlib
+import xraylib_np as xlib_np
+import torch.nn as nn
+from data_generation_fns import rotate, MakeFLlinesDictionary, intersecting_length_fl_detectorlet_3d
+
+
+fl_K = np.array([xlib.KA1_LINE, xlib.KA2_LINE, xlib.KA3_LINE, xlib.KB1_LINE, xlib.KB2_LINE,
+                 xlib.KB3_LINE, xlib.KB4_LINE, xlib.KB5_LINE])
+
+fl_L = np.array([xlib.LA1_LINE, xlib.LA2_LINE, xlib.LB1_LINE, xlib.LB2_LINE, xlib.LB3_LINE,
+                 xlib.LB4_LINE, xlib.LB5_LINE, xlib.LB6_LINE, xlib.LB7_LINE, xlib.LB9_LINE,
+                 xlib.LB10_LINE, xlib.LB15_LINE, xlib.LB17_LINE])
+
+fl_M = np.array([xlib.MA1_LINE, xlib.MA2_LINE, xlib.MB_LINE])
+
 class PPM(nn.Module):
     
     fl_line_groups=np.array(["K", "L", "M"]) 
@@ -6,7 +24,7 @@ class PPM(nn.Module):
     fl_M=fl_M
     group_lines=True
     
-    def __init__(self, ini_kind, const, grid_concentration, p, n_element, sample_height_n, minibatch_size, sample_size_n, sample_size_cm,
+    def __init__(self, dev, ini_kind, init_const, grid_concentration, p, n_element, sample_height_n, minibatch_size, sample_size_n, sample_size_cm,
                  this_aN_dic, probe_energy, probe_cts, fl_line_groups, fl_K, fl_L, fl_M, group_lines, 
                  theta_st, theta_end, n_theta, this_theta_idx,
                  det_ds_spacing_cm, det_size_cm, det_from_sample_cm, P_save_path):
@@ -14,8 +32,9 @@ class PPM(nn.Module):
         Initialize the attributes of PPM. 
         """
         super(PPM, self).__init__() # inherit the __init__ from nn.Module.
+        self.dev = dev
         self.ini_kind = ini_kind
-        self.const = const
+        self.init_const = init_const
         self.grid_concentration = grid_concentration
         self.theta_ls = - tc.linspace(theta_st, theta_end, n_theta+1)[:-1]
         self.this_theta_idx = this_theta_idx
@@ -68,11 +87,11 @@ class PPM(nn.Module):
         """
         if self.ini_kind == "rand" or self.ini_kind == "randn":
             theta = self.theta_ls[self.this_theta_idx]
-            concentration_map_rot = rotate(self.grid_concentration, theta, dev).view(self.n_element, self.sample_height_n * self.sample_size_n, self.sample_size_n)
+            concentration_map_rot = rotate(self.grid_concentration, theta, self.dev).view(self.n_element, self.sample_height_n * self.sample_size_n, self.sample_size_n)
             return nn.Parameter(concentration_map_rot[:, self.minibatch_size * self.p : self.minibatch_size*(self.p+1), :])
         
         if self.ini_kind == "const":        
-            return nn.Parameter(tc.zeros(self.n_element, self.minibatch_size, self.sample_size_n) + self.const)
+            return nn.Parameter(tc.zeros(self.n_element, self.minibatch_size, self.sample_size_n) + self.init_const)
 
     def init_fl_all_lines_dic(self):
         """
@@ -92,21 +111,20 @@ class PPM(nn.Module):
                                                   self.sample_size_n.cpu().numpy(), self.sample_size_cm.cpu().numpy(),
                                                   self.sample_height_n.cpu().numpy(), self.P_save_path)
    
-        P = P.float().to(dev)
-#         print(P.shape)
-        
+        P = P.float().to(self.dev)      
         P = P.view(n_det, 3, self.dia_len_n * self.sample_height_n * self.sample_size_n, self.sample_size_n)
         P_batch = P[:, :, self.dia_len_n * self.minibatch_size * self.p : self.dia_len_n * self.minibatch_size * (self.p+1), :].detach().clone()
         P_batch = P_batch.view(n_det, 3, self.dia_len_n * self.minibatch_size * self.sample_size_n)
         del P
 
         return n_det, P_batch
+
+        return n_det, P_batch
     
     def init_probe(self):
-        return self.probe_cts * tc.ones((self.minibatch_size * self.sample_size_n), device=dev)
+        return self.probe_cts * tc.ones((self.minibatch_size * self.sample_size_n), device=self.dev)
     
     def forward(self, grid_concentration, this_theta_idx): 
-        start_time = time.time()
         """
         Forward propagation.
         """      
@@ -115,7 +133,7 @@ class PPM(nn.Module):
         theta = self.theta_ls[this_theta_idx]
 
         # Rotate the sample
-        concentration_map_rot = rotate(grid_concentration, theta, dev).view(self.n_element, self.sample_height_n * self.sample_size_n, self.sample_size_n)
+        concentration_map_rot = rotate(grid_concentration, theta, self.dev).view(self.n_element, self.sample_height_n * self.sample_size_n, self.sample_size_n)
         
         # Set part of the sample to be the updating target
         concentration_map_rot[:, self.minibatch_size * self.p : self.minibatch_size*(self.p+1), :] = self.xp
@@ -125,11 +143,11 @@ class PPM(nn.Module):
         
         ## Calculate the attenuation of the probe
         # Calculate the expoenent of attenuation of each voxel in the batch. (The atteuation before the probe enters each voxel.)
-        att_exponent_acc_map = tc.zeros((self.minibatch_size, self.sample_size_n+1), device=dev)
+        att_exponent_acc_map = tc.zeros((self.minibatch_size, self.sample_size_n+1), device=self.dev)
         for j in range(self.n_element):
             lac_single = concentration_map_rot_batch[j] * self.probe_attCS_ls[j]
             lac_acc = tc.cumsum(lac_single, axis=1)
-            lac_acc = tc.cat((tc.zeros((self.minibatch_size, 1), device=dev), lac_acc), dim = 1)
+            lac_acc = tc.cat((tc.zeros((self.minibatch_size, 1), device=self.dev), lac_acc), dim = 1)
             att_exponent_acc = lac_acc * (self.sample_size_cm / self.sample_size_n)    
             att_exponent_acc_map += att_exponent_acc
             
@@ -138,7 +156,7 @@ class PPM(nn.Module):
 
         
         ### 2: Calculate the number of fluerescence photon of each line generated at each voxel given one incident photon
-        fl_map_tot_flat_theta = tc.zeros((self.n_lines, self.n_voxel_batch), device=dev)        
+        fl_map_tot_flat_theta = tc.zeros((self.n_lines, self.n_voxel_batch), device=self.dev)        
         concentration_map_rot_batch_flat = concentration_map_rot_batch.view(self.n_element, self.n_voxel_batch)
         line_idx = 0
         for j in range(self.n_element):
@@ -183,7 +201,7 @@ class PPM(nn.Module):
         fl_signal_SA_theta = tc.sum(fl_signal_SA_theta, axis=-1)
                        
         output1 = fl_signal_SA_theta
-        output2 = probe_cts * transmission_theta
+        output2 = self.probe_cts * transmission_theta
 #         print("running_time = %.3f" %(time.time() - start_time))
         return output1, output2
 
@@ -197,7 +215,7 @@ class PPM_cont(nn.Module):
     fl_M=fl_M
     group_lines=True
     
-    def __init__(self, grid_concentration, p, n_element, sample_height_n, minibatch_size, sample_size_n, sample_size_cm,
+    def __init__(self, dev, grid_concentration, p, n_element, sample_height_n, minibatch_size, sample_size_n, sample_size_cm,
                  this_aN_dic, probe_energy, probe_cts, fl_line_groups, fl_K, fl_L, fl_M, group_lines, 
                  theta_st, theta_end, n_theta, this_theta_idx,
                  det_ds_spacing_cm, det_size_cm, det_from_sample_cm, P_save_path):
@@ -205,6 +223,7 @@ class PPM_cont(nn.Module):
         Initialize the attributes of PPM. 
         """
         super(PPM_cont, self).__init__() # inherit the __init__ from nn.Module.
+        self.dev = dev
         self.grid_concentration = grid_concentration
         self.theta_ls = - tc.linspace(theta_st, theta_end, n_theta+1)[:-1]
         self.this_theta_idx = this_theta_idx
@@ -256,7 +275,7 @@ class PPM_cont(nn.Module):
         Initialize self.x with the tensor of the saved intermediate reconstructing results (n_element, minibatch_size, n_y)
         """
         theta = self.theta_ls[self.this_theta_idx]
-        concentration_map_rot = rotate(self.grid_concentration, theta, dev).view(self.n_element, self.sample_height_n * self.sample_size_n, self.sample_size_n)
+        concentration_map_rot = rotate(self.grid_concentration, theta, self.dev).view(self.n_element, self.sample_height_n * self.sample_size_n, self.sample_size_n)
         return nn.Parameter(concentration_map_rot[:, self.minibatch_size * self.p : self.minibatch_size*(self.p+1), :])
 
     def init_fl_all_lines_dic(self):
@@ -277,9 +296,7 @@ class PPM_cont(nn.Module):
                                                   self.sample_size_n.cpu().numpy(), self.sample_size_cm.cpu().numpy(),
                                                   self.sample_height_n.cpu().numpy(), self.P_save_path)
    
-        P = P.float().to(dev)
-#         print(P.shape)
-        
+        P = P.float().to(self.dev)       
         P = P.view(n_det, 3, self.dia_len_n * self.sample_height_n * self.sample_size_n, self.sample_size_n)
         P_batch = P[:, :, self.dia_len_n * self.minibatch_size * self.p : self.dia_len_n * self.minibatch_size * (self.p+1), :].detach().clone()
         P_batch = P_batch.view(n_det, 3, self.dia_len_n * self.minibatch_size * self.sample_size_n)
@@ -288,10 +305,9 @@ class PPM_cont(nn.Module):
         return n_det, P_batch
     
     def init_probe(self):
-        return self.probe_cts * tc.ones((self.minibatch_size * self.sample_size_n), device=dev)
+        return self.probe_cts * tc.ones((self.minibatch_size * self.sample_size_n), device=self.dev)
     
     def forward(self, grid_concentration, this_theta_idx): 
-        start_time = time.time()
         """
         Forward propagation.
         """      
@@ -300,7 +316,7 @@ class PPM_cont(nn.Module):
         theta = self.theta_ls[this_theta_idx]
 
         # Rotate the sample
-        concentration_map_rot = rotate(grid_concentration, theta, dev).view(self.n_element, self.sample_height_n * self.sample_size_n, self.sample_size_n)
+        concentration_map_rot = rotate(grid_concentration, theta, self.dev).view(self.n_element, self.sample_height_n * self.sample_size_n, self.sample_size_n)
         
         # Set part of the sample to be the updating target
         concentration_map_rot[:, self.minibatch_size * self.p : self.minibatch_size*(self.p+1), :] = self.xp
@@ -310,11 +326,11 @@ class PPM_cont(nn.Module):
         
         ## Calculate the attenuation of the probe
         # Calculate the expoenent of attenuation of each voxel in the batch. (The atteuation before the probe enters each voxel.)
-        att_exponent_acc_map = tc.zeros((self.minibatch_size, self.sample_size_n+1), device=dev)
+        att_exponent_acc_map = tc.zeros((self.minibatch_size, self.sample_size_n+1), device=self.dev)
         for j in range(self.n_element):
             lac_single = concentration_map_rot_batch[j] * self.probe_attCS_ls[j]
             lac_acc = tc.cumsum(lac_single, axis=1)
-            lac_acc = tc.cat((tc.zeros((self.minibatch_size, 1), device=dev), lac_acc), dim = 1)
+            lac_acc = tc.cat((tc.zeros((self.minibatch_size, 1), device=self.dev), lac_acc), dim = 1)
             att_exponent_acc = lac_acc * (self.sample_size_cm / self.sample_size_n)    
             att_exponent_acc_map += att_exponent_acc
             
@@ -322,7 +338,7 @@ class PPM_cont(nn.Module):
         transmission_theta = tc.exp(-att_exponent_acc_map[:,-1])
         
         ### 2: Calculate the number of fluerescence photon of each line generated at each voxel given one incident photon
-        fl_map_tot_flat_theta = tc.zeros((self.n_lines, self.n_voxel_batch), device=dev)
+        fl_map_tot_flat_theta = tc.zeros((self.n_lines, self.n_voxel_batch), device=self.dev)
         concentration_map_rot_batch_flat = concentration_map_rot_batch.view(self.n_element, self.n_voxel_batch)
         line_idx = 0
         for j in range(self.n_element):
@@ -368,6 +384,6 @@ class PPM_cont(nn.Module):
         fl_signal_SA_theta = tc.sum(fl_signal_SA_theta, axis=-1)
                        
         output1 = fl_signal_SA_theta
-        output2 = probe_cts * transmission_theta
-#         print("running_time = %.3f" %(time.time() - start_time))
+        output2 = self.probe_cts * transmission_theta
+
         return output1, output2

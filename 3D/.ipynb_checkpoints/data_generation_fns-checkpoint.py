@@ -141,7 +141,7 @@ def attenuation_3d(src_path, theta_st, theta_end, n_theta, sample_height_n, samp
 
 
 def create_XRT_data_3d(src_path, theta_st, theta_end, n_theta, sample_height_n, sample_size_n,
-                         sample_size_cm, this_aN_dic, probe_energy, probe_cts, save_path, save_fname, dev):
+                         sample_size_cm, this_aN_dic, probe_energy, probe_cts, save_path, save_fname, theta_sep, dev):
     """
     Parameters
     ----------
@@ -182,7 +182,7 @@ def create_XRT_data_3d(src_path, theta_st, theta_end, n_theta, sample_height_n, 
     Returns
     -------
     XRT_data : ndarray
-        The dimension of the array is (n_theta, sample_size_n)
+        The dimension of the array is (n_theta, sample_height_n * sample_size_n)
         [note: sample_size may not be the same as the input argument because of padding]
     """   
     XRT_data = probe_cts * attenuation_3d(src_path, theta_st, theta_end, n_theta, sample_height_n, sample_size_n,
@@ -191,9 +191,15 @@ def create_XRT_data_3d(src_path, theta_st, theta_end, n_theta, sample_height_n, 
     if os.path.isfile(save_path):
         os.mkdir(save_path)
     else:
-        pass
+        pass    
     
-    np.save(os.path.join(save_path, save_fname), XRT_data.cpu())
+    if theta_sep == True:       
+        for this_theta_idx in tqdm(range(n_theta)):
+            np.save(os.path.join(save_path, save_fname +'_{}'.format(this_theta_idx)), XRT_data[this_theta_idx].cpu())
+    
+    else:
+        np.save(os.path.join(save_path, save_fname), XRT_data.cpu())
+    
     return XRT_data
 
 

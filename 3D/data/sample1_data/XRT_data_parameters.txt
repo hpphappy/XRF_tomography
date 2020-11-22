@@ -14,4 +14,5 @@
  'probe_cts': tensor(10000000.),
  'save_path': './data/sample1_data',
  'save_fname': 'XRT_sample1',
+ 'theta_sep': True,
  'dev': 'cpu'}

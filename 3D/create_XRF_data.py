@@ -56,7 +56,7 @@ params_3d_64_64_64 = {'P_save_path': os.path.join('./data/sample1_recon', 'Inter
                   }
 
 
-params = params_3d_64_64_64
+params = params_3d_5_5_5
 
 
 if __name__ == "__main__":  

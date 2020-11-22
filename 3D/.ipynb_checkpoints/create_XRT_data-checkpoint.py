@@ -28,6 +28,7 @@ params_3d_5_5_5 = {'src_path': os.path.join('./data/sample3_pad', 'grid_concentr
                    'probe_cts': tc.tensor(1.0E7).to(dev), 
                    'save_path': './data/sample3_data',
                    'save_fname': 'XRT_sample3',
+                   'theta_sep': True,
                    'dev': dev
                   }
 
@@ -43,12 +44,13 @@ params_3d_64_64_64 = {'src_path': os.path.join('./data/sample1_pad', 'grid_conce
                    'probe_cts': tc.tensor(1.0E7).to(dev), 
                    'save_path': './data/sample1_data',
                    'save_fname': 'XRT_sample1',
+                   'theta_sep': True,
                    'dev': dev
                   }
 
 
     
-params = params_3d_64_64_64
+params = params_3d_5_5_5
 
 
 if __name__ == "__main__":  
