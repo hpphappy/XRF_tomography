@@ -111,9 +111,9 @@ class PPM(nn.Module):
                                                   self.sample_size_n.cpu().numpy(), self.sample_size_cm.cpu().numpy(),
                                                   self.sample_height_n.cpu().numpy(), self.P_save_path)
    
-        P = P.float().to(self.dev)      
+        P = P.float()      
         P = P.view(n_det, 3, self.dia_len_n * self.sample_height_n * self.sample_size_n, self.sample_size_n)
-        P_batch = P[:, :, self.dia_len_n * self.minibatch_size * self.p : self.dia_len_n * self.minibatch_size * (self.p+1), :].detach().clone()
+        P_batch = P[:, :, self.dia_len_n * self.minibatch_size * self.p : self.dia_len_n * self.minibatch_size * (self.p+1), :].to(self.dev)
         P_batch = P_batch.view(n_det, 3, self.dia_len_n * self.minibatch_size * self.sample_size_n)
         del P
 
@@ -295,9 +295,9 @@ class PPM_cont(nn.Module):
                                                   self.sample_size_n.cpu().numpy(), self.sample_size_cm.cpu().numpy(),
                                                   self.sample_height_n.cpu().numpy(), self.P_save_path)
    
-        P = P.float().to(self.dev)       
+        P = P.float()   
         P = P.view(n_det, 3, self.dia_len_n * self.sample_height_n * self.sample_size_n, self.sample_size_n)
-        P_batch = P[:, :, self.dia_len_n * self.minibatch_size * self.p : self.dia_len_n * self.minibatch_size * (self.p+1), :].detach().clone()
+        P_batch = P[:, :, self.dia_len_n * self.minibatch_size * self.p : self.dia_len_n * self.minibatch_size * (self.p+1), :].to(self.dev)    
         P_batch = P_batch.view(n_det, 3, self.dia_len_n * self.minibatch_size * self.sample_size_n)
         del P
 
