@@ -129,7 +129,7 @@ params_3d_64_64_64 = {'dev': dev,
 
 
 
-params = params_3d_5_5_5
+params = params_3d_64_64_64
 
 if __name__ == "__main__":  
     

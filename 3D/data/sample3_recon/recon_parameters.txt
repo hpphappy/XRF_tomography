@@ -1,8 +1,8 @@
 starting_epoch = 0
-n_epoch = 5
+n_epoch = 40
 {'C': 6, 'O': 8, 'Si': 14, 'Ca': 20, 'Fe': 26}
 n_minibatch = 1
-b = 0.001000000
+b = 0.000100000
 learning rate = 0.001000
 theta_st = 0.00
 theta_end = 6.28

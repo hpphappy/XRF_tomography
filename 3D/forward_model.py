@@ -47,11 +47,11 @@ class PPM(nn.Module):
         
         self.probe_energy = probe_energy  
         self.this_aN_dic = this_aN_dic
-        self.n_element = tc.as_tensor(len(self.this_aN_dic)).to(dev)
+        self.n_element = tc.as_tensor(len(self.this_aN_dic)).to(self.dev)
         self.element_ls = np.array(list(this_aN_dic.keys()))
         self.aN_ls = np.array(list(this_aN_dic.values()))
         
-        self.probe_attCS_ls = tc.as_tensor(xlib_np.CS_Total(self.aN_ls, self.probe_energy).flatten()).to(dev)
+        self.probe_attCS_ls = tc.as_tensor(xlib_np.CS_Total(self.aN_ls, self.probe_energy).flatten()).to(self.dev)
 #         self.probe_attCS_dic = dict(zip(self.element_ls, self.probe_attCS_ls))
         
         self.sample_size_cm = sample_size_cm
@@ -61,10 +61,10 @@ class PPM(nn.Module):
         self.fl_M = fl_M
         self.group_lines = group_lines
         self.fl_all_lines_dic = self.init_fl_all_lines_dic()
-        self.n_lines = tc.as_tensor(self.fl_all_lines_dic["n_lines"]).to(dev)
-        self.FL_line_attCS_ls = tc.as_tensor(xlib_np.CS_Total(self.aN_ls, self.fl_all_lines_dic["fl_energy"])).float().to(dev)
-        self.detected_fl_unit_concentration = tc.as_tensor(self.fl_all_lines_dic["detected_fl_unit_concentration"]).float().to(dev)
-        self.n_line_group_each_element = tc.IntTensor(self.fl_all_lines_dic["n_line_group_each_element"]).to(dev)
+        self.n_lines = tc.as_tensor(self.fl_all_lines_dic["n_lines"]).to(self.dev)
+        self.FL_line_attCS_ls = tc.as_tensor(xlib_np.CS_Total(self.aN_ls, self.fl_all_lines_dic["fl_energy"])).float().to(self.dev)
+        self.detected_fl_unit_concentration = tc.as_tensor(self.fl_all_lines_dic["detected_fl_unit_concentration"]).float().to(self.dev)
+        self.n_line_group_each_element = tc.IntTensor(self.fl_all_lines_dic["n_line_group_each_element"]).to(self.dev)
         
         self.dia_len_n = int((self.sample_height_n**2 + self.sample_size_n**2 + self.sample_size_n**2)**0.5)
         self.n_voxel_batch = self.minibatch_size * self.sample_size_n
@@ -144,29 +144,28 @@ class PPM(nn.Module):
         ## Calculate the attenuation of the probe
         # Calculate the expoenent of attenuation of each voxel in the batch. (The atteuation before the probe enters each voxel.)
         att_exponent_acc_map = tc.zeros((self.minibatch_size, self.sample_size_n+1), device=self.dev)
+        
+        fl_map_tot_flat_theta = tc.zeros((self.n_lines, self.n_voxel_batch), device=self.dev)
+        concentration_map_rot_batch_flat = concentration_map_rot_batch.view(self.n_element, self.n_voxel_batch)
+        line_idx = 0
         for j in range(self.n_element):
+            ## for step 1
             lac_single = concentration_map_rot_batch[j] * self.probe_attCS_ls[j]
             lac_acc = tc.cumsum(lac_single, axis=1)
             lac_acc = tc.cat((tc.zeros((self.minibatch_size, 1), device=self.dev), lac_acc), dim = 1)
             att_exponent_acc = lac_acc * (self.sample_size_cm / self.sample_size_n)    
             att_exponent_acc_map += att_exponent_acc
             
-        attenuation_map_theta_flat = tc.exp(-(att_exponent_acc_map[:,:-1])).view(self.n_voxel_batch)
-        transmission_theta = tc.exp(-att_exponent_acc_map[:,-1])
-
-        
-        ### 2: Calculate the number of fluerescence photon of each line generated at each voxel given one incident photon
-        fl_map_tot_flat_theta = tc.zeros((self.n_lines, self.n_voxel_batch), device=self.dev)        
-        concentration_map_rot_batch_flat = concentration_map_rot_batch.view(self.n_element, self.n_voxel_batch)
-        line_idx = 0
-        for j in range(self.n_element):
-            fl_unit = self.detected_fl_unit_concentration[line_idx:line_idx + self.n_line_group_each_element[j]]
-            
+            ## for step 2
+            fl_unit = self.detected_fl_unit_concentration[line_idx:line_idx + self.n_line_group_each_element[j]]            
             ## FL signal over the current elemental lines for each voxel
-            fl_map = tc.stack([concentration_map_rot_batch_flat[j] * fl_unit_single_line for fl_unit_single_line in fl_unit])
-            
+            fl_map = tc.stack([concentration_map_rot_batch_flat[j] * fl_unit_single_line for fl_unit_single_line in fl_unit])            
             fl_map_tot_flat_theta[line_idx:line_idx + self.n_line_group_each_element[j],:] = fl_map            
             line_idx = line_idx + len(fl_unit)
+            
+        attenuation_map_theta_flat = tc.exp(-(att_exponent_acc_map[:,:-1])).view(self.n_voxel_batch)
+        transmission_theta = tc.exp(-att_exponent_acc_map[:,-1])
+        
             
         ### 3: Calculate SA (the map of attenuation ratio due to self-absorption of the FL signal):
         # 1. for each FL emitting source voxel (n_voxel_batch),
@@ -236,11 +235,11 @@ class PPM_cont(nn.Module):
         
         self.probe_energy = probe_energy  
         self.this_aN_dic = this_aN_dic
-        self.n_element = tc.as_tensor(len(self.this_aN_dic)).to(dev)
+        self.n_element = tc.as_tensor(len(self.this_aN_dic)).to(self.dev)
         self.element_ls = np.array(list(this_aN_dic.keys()))
         self.aN_ls = np.array(list(this_aN_dic.values()))
         
-        self.probe_attCS_ls = tc.as_tensor(xlib_np.CS_Total(self.aN_ls, self.probe_energy).flatten()).to(dev)
+        self.probe_attCS_ls = tc.as_tensor(xlib_np.CS_Total(self.aN_ls, self.probe_energy).flatten()).to(self.dev)
 #         self.probe_attCS_dic = dict(zip(self.element_ls, self.probe_attCS_ls))
         
         self.sample_size_cm = sample_size_cm
@@ -250,10 +249,10 @@ class PPM_cont(nn.Module):
         self.fl_M = fl_M
         self.group_lines = group_lines
         self.fl_all_lines_dic = self.init_fl_all_lines_dic()
-        self.n_lines = tc.as_tensor(self.fl_all_lines_dic["n_lines"]).to(dev)
-        self.FL_line_attCS_ls = tc.as_tensor(xlib_np.CS_Total(self.aN_ls, self.fl_all_lines_dic["fl_energy"])).float().to(dev)
-        self.detected_fl_unit_concentration = tc.as_tensor(self.fl_all_lines_dic["detected_fl_unit_concentration"]).float().to(dev)
-        self.n_line_group_each_element = tc.IntTensor(self.fl_all_lines_dic["n_line_group_each_element"]).to(dev)
+        self.n_lines = tc.as_tensor(self.fl_all_lines_dic["n_lines"]).to(self.dev)
+        self.FL_line_attCS_ls = tc.as_tensor(xlib_np.CS_Total(self.aN_ls, self.fl_all_lines_dic["fl_energy"])).float().to(self.dev)
+        self.detected_fl_unit_concentration = tc.as_tensor(self.fl_all_lines_dic["detected_fl_unit_concentration"]).float().to(self.dev)
+        self.n_line_group_each_element = tc.IntTensor(self.fl_all_lines_dic["n_line_group_each_element"]).to(self.dev)
         
         self.dia_len_n = int((self.sample_height_n**2 + self.sample_size_n**2 + self.sample_size_n**2)**0.5)
         self.n_voxel_batch = self.minibatch_size * self.sample_size_n
@@ -327,28 +326,28 @@ class PPM_cont(nn.Module):
         ## Calculate the attenuation of the probe
         # Calculate the expoenent of attenuation of each voxel in the batch. (The atteuation before the probe enters each voxel.)
         att_exponent_acc_map = tc.zeros((self.minibatch_size, self.sample_size_n+1), device=self.dev)
+        
+        fl_map_tot_flat_theta = tc.zeros((self.n_lines, self.n_voxel_batch), device=self.dev)
+        concentration_map_rot_batch_flat = concentration_map_rot_batch.view(self.n_element, self.n_voxel_batch)
+        line_idx = 0
         for j in range(self.n_element):
+            ## for step 1
             lac_single = concentration_map_rot_batch[j] * self.probe_attCS_ls[j]
             lac_acc = tc.cumsum(lac_single, axis=1)
             lac_acc = tc.cat((tc.zeros((self.minibatch_size, 1), device=self.dev), lac_acc), dim = 1)
             att_exponent_acc = lac_acc * (self.sample_size_cm / self.sample_size_n)    
             att_exponent_acc_map += att_exponent_acc
             
+            ## for step 2
+            fl_unit = self.detected_fl_unit_concentration[line_idx:line_idx + self.n_line_group_each_element[j]]            
+            ## FL signal over the current elemental lines for each voxel
+            fl_map = tc.stack([concentration_map_rot_batch_flat[j] * fl_unit_single_line for fl_unit_single_line in fl_unit])            
+            fl_map_tot_flat_theta[line_idx:line_idx + self.n_line_group_each_element[j],:] = fl_map            
+            line_idx = line_idx + len(fl_unit)
+            
         attenuation_map_theta_flat = tc.exp(-(att_exponent_acc_map[:,:-1])).view(self.n_voxel_batch)
         transmission_theta = tc.exp(-att_exponent_acc_map[:,-1])
         
-        ### 2: Calculate the number of fluerescence photon of each line generated at each voxel given one incident photon
-        fl_map_tot_flat_theta = tc.zeros((self.n_lines, self.n_voxel_batch), device=self.dev)
-        concentration_map_rot_batch_flat = concentration_map_rot_batch.view(self.n_element, self.n_voxel_batch)
-        line_idx = 0
-        for j in range(self.n_element):
-            fl_unit = self.detected_fl_unit_concentration[line_idx:line_idx + self.n_line_group_each_element[j]]
-            
-            ## FL signal over the current elemental lines for each voxel
-            fl_map = tc.stack([concentration_map_rot_batch_flat[j] * fl_unit_single_line for fl_unit_single_line in fl_unit])
-            
-            fl_map_tot_flat_theta[line_idx:line_idx + self.n_line_group_each_element[j],:] = fl_map            
-            line_idx = line_idx + len(fl_unit)
             
         ### 3: Calculate SA (the map of attenuation ratio due to self-absorption of the FL signal):
         # 1. for each FL emitting source voxel (n_voxel_batch),
