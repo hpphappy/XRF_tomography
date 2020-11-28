@@ -24,7 +24,7 @@ class PPM(nn.Module):
     fl_M=fl_M
     group_lines=True
     
-    def __init__(self, dev, ini_kind, init_const, grid_concentration, p, n_element, sample_height_n, minibatch_size, sample_size_n, sample_size_cm,
+    def __init__(self, dev, lac, ini_kind, init_const, grid_concentration, p, n_element, sample_height_n, minibatch_size, sample_size_n, sample_size_cm,
                  this_aN_dic, probe_energy, probe_cts, fl_line_groups, fl_K, fl_L, fl_M, group_lines, 
                  theta_st, theta_end, n_theta, this_theta_idx,
                  det_ds_spacing_cm, det_size_cm, det_from_sample_cm, P_save_path):
@@ -33,6 +33,7 @@ class PPM(nn.Module):
         """
         super(PPM, self).__init__() # inherit the __init__ from nn.Module.
         self.dev = dev
+        self.lac = lac
         self.ini_kind = ini_kind
         self.init_const = init_const
         self.grid_concentration = grid_concentration
@@ -55,11 +56,7 @@ class PPM(nn.Module):
 #         self.probe_attCS_dic = dict(zip(self.element_ls, self.probe_attCS_ls))
         
         self.sample_size_cm = sample_size_cm
-        self.fl_line_groups = fl_line_groups
-        self.fl_K = fl_K
-        self.fl_L = fl_L
-        self.fl_M = fl_M
-        self.group_lines = group_lines
+
         self.fl_all_lines_dic = self.init_fl_all_lines_dic()
         self.n_lines = tc.as_tensor(self.fl_all_lines_dic["n_lines"]).to(self.dev)
         self.FL_line_attCS_ls = tc.as_tensor(xlib_np.CS_Total(self.aN_ls, self.fl_all_lines_dic["fl_energy"])).float().to(self.dev)
@@ -75,7 +72,8 @@ class PPM(nn.Module):
         self.det_from_sample_cm = det_from_sample_cm
         self.P_save_path = P_save_path
         
-        self.n_det, self.P_batch = self.init_intersecting_length_fl_detectorlet()  
+        self.n_det, self.P_batch = self.init_intersecting_length_fl_detectorlet()
+        self.SA_theta = self.init_SA_theta()
         
         self.probe_cts = probe_cts
         self.probe_before_attenuation_flat = self.init_probe()
@@ -119,7 +117,20 @@ class PPM(nn.Module):
 
         return n_det, P_batch
 
-        return n_det, P_batch
+    def init_SA_theta(self):  ##can be written using python parallel?
+
+        voxel_idx_offset = self.p * self.n_voxel_batch        
+        att_exponent = tc.stack([self.lac[:,:, tc.clamp((self.P_batch[m,0] - voxel_idx_offset), 0, self.n_voxel_batch).to(dtype=tc.long), self.P_batch[m,1].to(dtype=tc.long)]
+                                 * self.P_batch[m,2].view(1, 1, -1).repeat(self.n_element, self.n_lines, 1) for m in range(self.n_det)])
+        
+        ## summing over the attenation exponent contributed by all intersecting voxels, dim = (n_det, n_element, n_lines, n_voxel_batch(FL source))
+        att_exponent_voxel_sum = tc.sum(att_exponent.view(self.n_det, self.n_element, self.n_lines, self.n_voxel_batch, self.dia_len_n), axis=-1)
+        
+        ## calculate the attenuation caused by all elements, dim = (n_det, n_lines, n_voxel_batch(FL source)), and then take the average over n_det FL paths
+        SA_theta =  tc.mean(tc.exp(-tc.sum(att_exponent_voxel_sum, axis=1)), axis=0)    
+        
+        return SA_theta
+
     
     def init_probe(self):
         return self.probe_cts * tc.ones((self.minibatch_size * self.sample_size_n), device=self.dev)
@@ -166,43 +177,17 @@ class PPM(nn.Module):
         attenuation_map_theta_flat = tc.exp(-(att_exponent_acc_map[:,:-1])).view(self.n_voxel_batch)
         transmission_theta = tc.exp(-att_exponent_acc_map[:,-1])
         
-            
-        ### 3: Calculate SA (the map of attenuation ratio due to self-absorption of the FL signal):
-        # 1. for each FL emitting source voxel (n_voxel_batch),
-        # 2. we have an attenuation ratio when the photon for each elemental line reaches the edge of the sample (due to self absorption) (n_lines)
-        # ==> The dimension of SA: (n_lines, n_voxel_batch)
-              
-        # First, Calaulting the exponent of attenuation: att_exponent
-        # lac: linear attenuation coefficient = concentration * attenuation_cross_section, dimension: (n_element, n_lines, n_voxel_batch(FL source), n_voxel)  
-           # For each voxel source in this batch, there're n_lines emitted XRF energy, each voxel in the sample contribute to the attenuation due to SA
-        # FL_line_attCS_ls: an arrary of the attenuation cross section, dimension: (n_element, n_lines)
-           # The component in the array represents the total attenuation cross section at some line energy in some element
-               
-        lac = concentration_map_rot.view(self.n_element, 1, 1, self.n_voxel) * self.FL_line_attCS_ls.view(self.n_element, self.n_lines, 1, 1)
-        lac = lac.expand(-1, -1, self.n_voxel_batch, -1).float()
-        
-        voxel_idx_offset = self.p * self.n_voxel_batch
-        
-        att_exponent = tc.stack([lac[:,:, tc.clamp((self.P_batch[m,0] - voxel_idx_offset), 0, self.n_voxel_batch).to(dtype=tc.long), self.P_batch[m,1].to(dtype=tc.long)]
-                                 * self.P_batch[m,2].view(1, 1, -1).repeat(self.n_element, self.n_lines, 1) for m in range(self.n_det)])
-        
-        ## summing over the attenation exponent contributed by all intersecting voxels, dim = (n_det, n_element, n_lines, n_voxel_batch(FL source))
-        att_exponent_voxel_sum = tc.sum(att_exponent.view(self.n_det, self.n_element, self.n_lines, self.n_voxel_batch, self.dia_len_n), axis=-1)
-        
-        ## calculate the attenuation caused by all elements, dim = (n_det, n_lines, n_voxel_batch(FL source)), and then take the average over n_det FL paths
-        SA_theta =  tc.mean(tc.exp(-tc.sum(att_exponent_voxel_sum, axis=1)), axis=0)        
-        
               
         #### 4: Create XRF, XRT data ####           
         probe_after_attenuation_theta = self.probe_before_attenuation_flat * attenuation_map_theta_flat 
-        fl_signal_SA_theta = tc.unsqueeze(probe_after_attenuation_theta, dim=0) * fl_map_tot_flat_theta * SA_theta  
+        fl_signal_SA_theta = tc.unsqueeze(probe_after_attenuation_theta, dim=0) * fl_map_tot_flat_theta * self.SA_theta  
         fl_signal_SA_theta = fl_signal_SA_theta.view(-1, self.minibatch_size, self.sample_size_n)
         fl_signal_SA_theta = tc.sum(fl_signal_SA_theta, axis=-1)
                        
         output1 = fl_signal_SA_theta
         output2 = self.probe_cts * transmission_theta
 #         print("running_time = %.3f" %(time.time() - start_time))
-        return output1, output2
+        return output1, output2, concentration_map_rot
 
 
 
@@ -214,7 +199,7 @@ class PPM_cont(nn.Module):
     fl_M=fl_M
     group_lines=True
     
-    def __init__(self, dev, grid_concentration, p, n_element, sample_height_n, minibatch_size, sample_size_n, sample_size_cm,
+    def __init__(self, dev, lac, grid_concentration, p, n_element, sample_height_n, minibatch_size, sample_size_n, sample_size_cm,
                  this_aN_dic, probe_energy, probe_cts, fl_line_groups, fl_K, fl_L, fl_M, group_lines, 
                  theta_st, theta_end, n_theta, this_theta_idx,
                  det_ds_spacing_cm, det_size_cm, det_from_sample_cm, P_save_path):
@@ -223,6 +208,7 @@ class PPM_cont(nn.Module):
         """
         super(PPM_cont, self).__init__() # inherit the __init__ from nn.Module.
         self.dev = dev
+        self.lac = lac
         self.grid_concentration = grid_concentration
         self.theta_ls = - tc.linspace(theta_st, theta_end, n_theta+1)[:-1]
         self.this_theta_idx = this_theta_idx
@@ -240,14 +226,8 @@ class PPM_cont(nn.Module):
         self.aN_ls = np.array(list(this_aN_dic.values()))
         
         self.probe_attCS_ls = tc.as_tensor(xlib_np.CS_Total(self.aN_ls, self.probe_energy).flatten()).to(self.dev)
-#         self.probe_attCS_dic = dict(zip(self.element_ls, self.probe_attCS_ls))
         
         self.sample_size_cm = sample_size_cm
-        self.fl_line_groups = fl_line_groups
-        self.fl_K = fl_K
-        self.fl_L = fl_L
-        self.fl_M = fl_M
-        self.group_lines = group_lines
         self.fl_all_lines_dic = self.init_fl_all_lines_dic()
         self.n_lines = tc.as_tensor(self.fl_all_lines_dic["n_lines"]).to(self.dev)
         self.FL_line_attCS_ls = tc.as_tensor(xlib_np.CS_Total(self.aN_ls, self.fl_all_lines_dic["fl_energy"])).float().to(self.dev)
@@ -261,9 +241,9 @@ class PPM_cont(nn.Module):
         self.det_ds_spacing_cm = det_ds_spacing_cm
         self.det_size_cm = det_size_cm
         self.det_from_sample_cm = det_from_sample_cm
-        self.P_save_path = P_save_path
-        
+        self.P_save_path = P_save_path    
         self.n_det, self.P_batch = self.init_intersecting_length_fl_detectorlet()  
+        self.SA_theta = self.init_SA_theta()
         
         self.probe_cts = probe_cts
         self.probe_before_attenuation_flat = self.init_probe()
@@ -302,7 +282,21 @@ class PPM_cont(nn.Module):
         del P
 
         return n_det, P_batch
-    
+
+    def init_SA_theta(self):  ##can be written using python parallel?
+
+        voxel_idx_offset = self.p * self.n_voxel_batch        
+        att_exponent = tc.stack([self.lac[:,:, tc.clamp((self.P_batch[m,0] - voxel_idx_offset), 0, self.n_voxel_batch).to(dtype=tc.long), self.P_batch[m,1].to(dtype=tc.long)]
+                                 * self.P_batch[m,2].view(1, 1, -1).repeat(self.n_element, self.n_lines, 1) for m in range(self.n_det)])
+        
+        ## summing over the attenation exponent contributed by all intersecting voxels, dim = (n_det, n_element, n_lines, n_voxel_batch(FL source))
+        att_exponent_voxel_sum = tc.sum(att_exponent.view(self.n_det, self.n_element, self.n_lines, self.n_voxel_batch, self.dia_len_n), axis=-1)
+        
+        ## calculate the attenuation caused by all elements, dim = (n_det, n_lines, n_voxel_batch(FL source)), and then take the average over n_det FL paths
+        SA_theta =  tc.mean(tc.exp(-tc.sum(att_exponent_voxel_sum, axis=1)), axis=0)    
+        
+        return SA_theta
+
     def init_probe(self):
         return self.probe_cts * tc.ones((self.minibatch_size * self.sample_size_n), device=self.dev)
     
@@ -348,41 +342,16 @@ class PPM_cont(nn.Module):
         attenuation_map_theta_flat = tc.exp(-(att_exponent_acc_map[:,:-1])).view(self.n_voxel_batch)
         transmission_theta = tc.exp(-att_exponent_acc_map[:,-1])
         
-            
-        ### 3: Calculate SA (the map of attenuation ratio due to self-absorption of the FL signal):
-        # 1. for each FL emitting source voxel (n_voxel_batch),
-        # 2. we have an attenuation ratio when the photon for each elemental line reaches the edge of the sample (due to self absorption) (n_lines)
-        # ==> The dimension of SA: (n_lines, n_voxel_batch)
-        
-        
-        # First, Calaulting the exponent of attenuation: att_exponent
-        # lac: linear attenuation coefficient = concentration * attenuation_cross_section, dimension: (n_element, n_lines, n_voxel_batch(FL source), n_voxel)  
-           # For each voxel source in this batch, there're n_lines emitted XRF energy, each voxel in the sample contribute to the attenuation due to SA
-        # FL_line_attCS_ls: an arrary of the attenuation cross section, dimension: (n_element, n_lines)
-           # The component in the array represents the total attenuation cross section at some line energy in some element
-               
-        lac = concentration_map_rot.view(self.n_element, 1, 1, self.n_voxel) * self.FL_line_attCS_ls.view(self.n_element, self.n_lines, 1, 1)
-        lac = lac.expand(-1, -1, self.n_voxel_batch, -1).float()
-        
-        voxel_idx_offset = self.p * self.n_voxel_batch
-        
-        att_exponent = tc.stack([lac[:,:, tc.clamp((self.P_batch[m,0] - voxel_idx_offset), 0, self.n_voxel_batch).to(dtype=tc.long), self.P_batch[m,1].to(dtype=tc.long)]
-                                 * self.P_batch[m,2].view(1, 1, -1).repeat(self.n_element, self.n_lines, 1) for m in range(self.n_det)])
-        
-        ## summing over the attenation exponent contributed by all intersecting voxels, dim = (n_det, n_element, n_lines, n_voxel_batch(FL source))
-        att_exponent_voxel_sum = tc.sum(att_exponent.view(self.n_det, self.n_element, self.n_lines, self.n_voxel_batch, self.dia_len_n), axis=-1)
-        
-        ## calculate the attenuation caused by all elements, dim = (n_det, n_lines, n_voxel_batch(FL source)), and then take the average over n_det FL paths
-        SA_theta =  tc.mean(tc.exp(-tc.sum(att_exponent_voxel_sum, axis=1)), axis=0)        
-        
               
         #### 4: Create XRF, XRT data ####           
         probe_after_attenuation_theta = self.probe_before_attenuation_flat * attenuation_map_theta_flat 
-        fl_signal_SA_theta = tc.unsqueeze(probe_after_attenuation_theta, dim=0) * fl_map_tot_flat_theta * SA_theta  
+        fl_signal_SA_theta = tc.unsqueeze(probe_after_attenuation_theta, dim=0) * fl_map_tot_flat_theta * self.SA_theta  
         fl_signal_SA_theta = fl_signal_SA_theta.view(-1, self.minibatch_size, self.sample_size_n)
         fl_signal_SA_theta = tc.sum(fl_signal_SA_theta, axis=-1)
                        
         output1 = fl_signal_SA_theta
         output2 = self.probe_cts * transmission_theta
 
-        return output1, output2
+        return output1, output2, concentration_map_rot
+    
+    

@@ -282,7 +282,21 @@ class PPM_cont(nn.Module):
         del P
 
         return n_det, P_batch
-    
+
+    def init_SA_theta(self):  ##can be written using python parallel?
+
+        voxel_idx_offset = self.p * self.n_voxel_batch        
+        att_exponent = tc.stack([self.lac[:,:, tc.clamp((self.P_batch[m,0] - voxel_idx_offset), 0, self.n_voxel_batch).to(dtype=tc.long), self.P_batch[m,1].to(dtype=tc.long)]
+                                 * self.P_batch[m,2].view(1, 1, -1).repeat(self.n_element, self.n_lines, 1) for m in range(self.n_det)])
+        
+        ## summing over the attenation exponent contributed by all intersecting voxels, dim = (n_det, n_element, n_lines, n_voxel_batch(FL source))
+        att_exponent_voxel_sum = tc.sum(att_exponent.view(self.n_det, self.n_element, self.n_lines, self.n_voxel_batch, self.dia_len_n), axis=-1)
+        
+        ## calculate the attenuation caused by all elements, dim = (n_det, n_lines, n_voxel_batch(FL source)), and then take the average over n_det FL paths
+        SA_theta =  tc.mean(tc.exp(-tc.sum(att_exponent_voxel_sum, axis=1)), axis=0)    
+        
+        return SA_theta
+
     def init_probe(self):
         return self.probe_cts * tc.ones((self.minibatch_size * self.sample_size_n), device=self.dev)
     
@@ -338,6 +352,6 @@ class PPM_cont(nn.Module):
         output1 = fl_signal_SA_theta
         output2 = self.probe_cts * transmission_theta
 
-        return output1, output2
+        return output1, output2, concentration_map_rot
     
     
