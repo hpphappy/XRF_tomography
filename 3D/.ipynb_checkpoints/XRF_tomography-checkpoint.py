@@ -8,14 +8,17 @@ Created on Fri Nov 20 15:58:57 2020
 
 import os
 import numpy as np
+import xraylib_np as xlib_np
+
 import torch as tc
 tc.set_default_tensor_type(tc.FloatTensor)
 import torch.nn as nn
 from tqdm import tqdm
 import time
-from data_generation_fns import rotate
+from data_generation_fns import rotate, MakeFLlinesDictionary
 from array_ops import initialize_guess_3d
 from forward_model import PPM, PPM_cont
+
 import dxchange
 from pytorch_memlab import profile, set_target_gpu
 
@@ -31,10 +34,22 @@ def reconstruct_jXRFT_tomography(dev, recon_idx, cont_from_check_point, use_save
                                  sample_size_n, sample_height_n, sample_size_cm,
                                  probe_energy, probe_cts, det_size_cm, det_from_sample_cm, det_ds_spacing_cm, f_P,
                                  ):
-
+    
+    if not os.path.exists(recon_path):
+        os.mkdir(recon_path) 
 
     X_true = tc.from_numpy(np.load(os.path.join(grid_path, f_grid)).astype(np.float32)).to(dev)
-  
+    n_voxel_batch = minibatch_size * sample_size_n
+    n_voxel = sample_height_n * sample_size_n**2
+    aN_ls = np.array(list(this_aN_dic.values()))
+    
+    fl_all_lines_dic = MakeFLlinesDictionary(this_aN_dic, probe_energy,
+              sample_size_n.cpu().numpy(), sample_size_cm.cpu().numpy(),
+              fl_line_groups, fl_K, fl_L, fl_M,
+              group_lines)
+    FL_line_attCS_ls = tc.as_tensor(xlib_np.CS_Total(aN_ls, fl_all_lines_dic["fl_energy"])).float().to(dev)
+    n_lines = fl_all_lines_dic["n_lines"]
+    
     minibatch_ls_0 = tc.arange(n_minibatch).to(dev)
     n_batch = (sample_height_n * sample_size_n) // (n_minibatch * minibatch_size) 
     theta_ls = - tc.linspace(theta_st, theta_end, n_theta+1)[:-1].to(dev)
@@ -78,6 +93,15 @@ def reconstruct_jXRFT_tomography(dev, recon_idx, cont_from_check_point, use_save
         for epoch in tqdm(range(n_epoch)):
             for this_theta_idx, theta in enumerate(theta_ls):
         #         print("this_theta_idx = %d" %(this_theta_idx))
+                X_ap = np.load(os.path.join(recon_path, f_recon_grid) + '.npy').astype(np.float32)
+                X_ap = tc.from_numpy(X_ap).to(dev)
+                
+                ## Calculate lac using the current X_ap
+                theta = theta_ls[this_theta_idx]
+                ap_map_rot = rotate(X_ap, theta, dev).view(n_element, sample_height_n * sample_size_n, sample_size_n)        
+                lac = ap_map_rot.view(n_element, 1, 1, n_voxel) * FL_line_attCS_ls.view(n_element, n_lines, 1, 1)
+                lac = lac.expand(-1, -1, n_voxel_batch, -1).float()
+                
                 y1_true = tc.from_numpy(np.load(os.path.join(data_path, f_XRF_data)+'_{}'.format(this_theta_idx)+'.npy').astype(np.float32)).to(dev)
                 y2_true = tc.from_numpy(np.load(os.path.join(data_path, f_XRT_data)+'_{}'.format(this_theta_idx)+'.npy').astype(np.float32)).to(dev)
              
@@ -91,7 +115,7 @@ def reconstruct_jXRFT_tomography(dev, recon_idx, cont_from_check_point, use_save
                         # %memit
                         # print("current reserved memory: %g GB" %(tc.cuda.memory_stats(dev)['reserved_bytes.all.current']/1.0E9))
                         # t0 = time.perf_counter()
-                        model = [PPM(dev, ini_kind, init_const, X, p, len(this_aN_dic), sample_height_n, minibatch_size, sample_size_n, sample_size_cm,
+                        model = [PPM(dev, lac, ini_kind, init_const, X, p, n_element, sample_height_n, minibatch_size, sample_size_n, sample_size_cm,
                         this_aN_dic, probe_energy, probe_cts, fl_line_groups, fl_K, fl_L, fl_M, group_lines,
                         theta_st, theta_end, n_theta, this_theta_idx,
                         det_ds_spacing_cm, det_size_cm, det_from_sample_cm, P_save_path).to(dev) for p in minibatch_ls]
@@ -107,7 +131,7 @@ def reconstruct_jXRFT_tomography(dev, recon_idx, cont_from_check_point, use_save
                         # %memit 
                         # print("current reserved memory: %g GB" %(tc.cuda.memory_stats(dev)['reserved_bytes.all.current']/1.0E9))
                         # t0 = time.perf_counter()
-                        model = [PPM_cont(dev, X, p, len(this_aN_dic), sample_height_n, minibatch_size, sample_size_n, sample_size_cm,
+                        model = [PPM_cont(dev, lac, X, p, n_element, sample_height_n, minibatch_size, sample_size_n, sample_size_cm,
                         this_aN_dic, probe_energy, probe_cts, fl_line_groups, fl_K, fl_L, fl_M, group_lines,
                         theta_st, theta_end, n_theta, this_theta_idx,
                         det_ds_spacing_cm, det_size_cm, det_from_sample_cm, P_save_path).to(dev) for p in minibatch_ls]
@@ -135,7 +159,7 @@ def reconstruct_jXRFT_tomography(dev, recon_idx, cont_from_check_point, use_save
                         # print("check point 3 (forward propagation starts):")
                         # %memit
                         # print("current reserved memory: %g GB" %(tc.cuda.memory_stats(dev)['reserved_bytes.all.current']/1.0E9))
-                        y1_hat, y2_hat = model[ip](X, this_theta_idx)
+                        y1_hat, y2_hat, concentration_map_rot = model[ip](X, this_theta_idx)
                         # t4 = time.perf_counter()
                         # print("forward propagation takes %g s \n" %(t4 - t3))
                         
@@ -178,9 +202,8 @@ def reconstruct_jXRFT_tomography(dev, recon_idx, cont_from_check_point, use_save
                         # print("check point 9 (storing temp. recon. results) :\n")
                         # %memit
                         # print("current reserved memory: %g GB" %(tc.cuda.memory_stats(dev)['reserved_bytes.all.current']/1.0E9))
-                        X_rot = rotate(X, theta, dev).view(n_element, sample_height_n * sample_size_n, sample_size_n)
-                        X_rot[:, minibatch_size * p : minibatch_size*(p+1),:] = model[ip].xp
-                        X_update = rotate(X_rot.view(n_element, sample_height_n, sample_size_n, sample_size_n), -theta, dev)  
+                        concentration_map_rot[:, minibatch_size * p : minibatch_size*(p+1),:] = model[ip].xp
+                        X_update = rotate(concentration_map_rot.view(n_element, sample_height_n, sample_size_n, sample_size_n), -theta, dev)  
                         X = tc.clamp(X_update, 0, 10)
                                              
                         np.save(os.path.join(recon_path, f_recon_grid)+'.npy', X.detach().cpu().numpy())
@@ -341,8 +364,8 @@ def reconstruct_jXRFT_tomography(dev, recon_idx, cont_from_check_point, use_save
     
         # plt.savefig(os.path.join(recon_path, 'mse_model.pdf'))
         
-        np.save(os.path.join(recon_path, 'loss_minibatch.npy'), loss_minibatch.detach().numpy())  
-        np.save(os.path.join(recon_path, 'mse_model.npy'), mse_epoch_tot.detach().numpy()) 
+        np.save(os.path.join(recon_path, 'loss_minibatch.npy'), loss_minibatch.detach().cpu().numpy())  
+        np.save(os.path.join(recon_path, 'mse_model.npy'), mse_epoch_tot.detach().cpu().numpy()) 
         dxchange.write_tiff(X.detach().cpu().numpy(), os.path.join(recon_path, f_recon_grid)+"_"+str(recon_idx), dtype='float32', overwrite=True)
         
         

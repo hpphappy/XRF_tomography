@@ -1,11 +1,12 @@
 import os
+import torch as tc
 import torch.distributed as dist
 from torch.multiprocessing import Process
 from  time import sleep
 import datetime
 
         
-def init_processes(rank, size, fn, backend='gloo'):
+def init_processes(rank, size, fn, name, backend='gloo'):
     """ Initialize the distributed environment. """
     
     #Alternate way to provice rank 0 IP and open port
@@ -22,13 +23,13 @@ def init_processes(rank, size, fn, backend='gloo'):
                             world_size=size,
                             timeout=datetime.timedelta(0,seconds =  20))
     #dist.init_process_group(backend, rank=rank, world_size=size)
-    fn(rank, size)
+    fn(rank, size, name)
 
 
-def startprocesses(ranks, size, fn):
+def startprocesses(ranks, size, fn, name):
     processes = []
     for rank in ranks:
-        p = Process(target=init_processes, args=(rank, size, fn))
+        p = Process(target=init_processes, args=(rank, size, fn, name))
         p.start()
         processes.append(p)
 
@@ -37,12 +38,15 @@ def startprocesses(ranks, size, fn):
     print('finished')
 
     
-def run(rank, size):
+def run(rank, size, name):
     """ Distributed function. """
     print('{} :Inside rank {}, total processes = {}'\
           .format (os.getpid(),rank,size))
+    print(name)
     #sleep(5)
     print('{} exiting process'.format(os.getpid()))
     
+   
     
-startprocesses([0,1,2],3,run)
+if __name__ == '__main__':
+    startprocesses(range(2), 2, run, "Panpan")

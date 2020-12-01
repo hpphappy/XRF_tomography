@@ -34,7 +34,9 @@ def reconstruct_jXRFT_tomography(dev, recon_idx, cont_from_check_point, use_save
                                  sample_size_n, sample_height_n, sample_size_cm,
                                  probe_energy, probe_cts, det_size_cm, det_from_sample_cm, det_ds_spacing_cm, f_P,
                                  ):
-
+    
+    if not os.path.exists(recon_path):
+        os.mkdir(recon_path) 
 
     X_true = tc.from_numpy(np.load(os.path.join(grid_path, f_grid)).astype(np.float32)).to(dev)
     n_voxel_batch = minibatch_size * sample_size_n

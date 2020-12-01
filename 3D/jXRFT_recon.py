@@ -100,7 +100,7 @@ params_3d_64_64_64 = {'dev': dev,
                       'f_recon_parameters': 'recon_parameters.txt',
                       'n_epoch': tc.tensor(40).to(dev),
                       'n_minibatch': tc.tensor(1).to(dev),
-                      'minibatch_size': tc.tensor(1).to(dev),
+                      'minibatch_size': tc.tensor(100).to(dev),
                       'b': 1.0E-3,
                       'lr': 1.0E-3,
                       'init_const': 0.5,
@@ -125,16 +125,9 @@ params_3d_64_64_64 = {'dev': dev,
 
 
 
-
-
-
-
 params = params_3d_64_64_64
 
-if __name__ == "__main__":  
-    
-    if not os.path.exists(params['recon_path']):
-        os.mkdir(params['recon_path'])  
+if __name__ == "__main__":   
     
     reconstruct_jXRFT_tomography(**params)
 
