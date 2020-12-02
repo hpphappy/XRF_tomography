@@ -386,7 +386,7 @@ def reconstruct_jXRFT_tomography(dev, recon_idx, cont_from_check_point, use_save
     
                     loss = XRF_loss + b * XRT_loss 
                         
-                    loss_minibatch_cont[(n_minibatch * n_batch * n_theta) * epoch + (n_minibatch * n_batch) * this_theta_idx + n_minibatch * m + ip] = loss.detach()
+                    loss_minibatch_cont[(n_minibatch * n_batch * n_theta) * epoch + (n_minibatch * n_batch) * this_theta_idx + n_minibatch * m + rank] = loss.detach()
     
                     optimizer.zero_grad()
                     loss.backward()
