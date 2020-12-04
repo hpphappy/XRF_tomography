@@ -5,7 +5,7 @@ import os
 import numpy as np
 import torch as tc
 import xraylib as xlib
-from XRF_tomography_MPI import reconstruct_jXRFT_tomography
+from XRF_tomography_mpi import reconstruct_jXRFT_tomography
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -56,9 +56,9 @@ params_3d_5_5_5 = {'dev': dev,
                       'this_aN_dic': {"C": 6, "O": 8, "Si": 14, "Ca": 20, "Fe": 26},     
                       'ini_kind': 'const',
                       'f_recon_parameters': 'recon_parameters.txt',
-                      'n_epoch': tc.tensor(5).to(dev),
+                      'n_epoch': tc.tensor(40).to(dev),
                       'n_minibatch': tc.tensor(1).to(dev) ,
-                      'minibatch_size': tc.tensor(1).to(dev),
+                      'minibatch_size': tc.tensor(5).to(dev),
                       'b': 1.0E-3,
                       'lr': 1.0E-3,
                       'init_const': 0.5,
@@ -99,7 +99,7 @@ params_3d_64_64_64 = {'dev': dev,
                       'f_recon_parameters': 'recon_parameters.txt',
                       'n_epoch': tc.tensor(40).to(dev),
                       'n_minibatch': tc.tensor(1).to(dev),
-                      'minibatch_size': tc.tensor(1).to(dev),
+                      'minibatch_size': tc.tensor(256).to(dev),
                       'b': 1.0E-3,
                       'lr': 1.0E-3,
                       'init_const': 0.5,
@@ -123,7 +123,7 @@ params_3d_64_64_64 = {'dev': dev,
                      }
 
 
-params = params_3d_5_5_5
+params = params_3d_64_64_64
 
 
 if __name__ == "__main__": 

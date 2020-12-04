@@ -19,14 +19,24 @@ from data_generation_fns import rotate, MakeFLlinesDictionary, intersecting_leng
 from array_ops import initialize_guess_3d
 from forward_model_test_gpu import PPM, PPM_cont
 
+
+import matplotlib.pyplot as plt
+import matplotlib 
+matplotlib.rcParams['pdf.fonttype'] = 'truetype'
+fontProperties = {'family': 'serif', 'serif': ['Helvetica'], 'weight': 'normal', 'size': 12}
+plt.rc('font', **fontProperties)
+from matplotlib import gridspec
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+import matplotlib.ticker as mtick
+
 import dxchange
 from pytorch_memlab import profile, set_target_gpu
 
 import warnings
 warnings.filterwarnings("ignore")
 
-set_target_gpu(0)
-@profile
+# set_target_gpu(0)
+# @profile
 def reconstruct_jXRFT_tomography(dev, recon_idx, cont_from_check_point, use_saved_initial_guess, recon_path, f_initial_guess, f_recon_grid,
                                  grid_path, f_grid, data_path, f_XRF_data, f_XRT_data, this_aN_dic,
                                  ini_kind, f_recon_parameters, n_epoch, n_minibatch, minibatch_size, b, lr, init_const, 
@@ -39,7 +49,8 @@ def reconstruct_jXRFT_tomography(dev, recon_idx, cont_from_check_point, use_save
         os.mkdir(recon_path) 
         
     loss_fn = nn.MSELoss()
-    X_true = tc.from_numpy(np.load(os.path.join(grid_path, f_grid)).astype(np.float32)).to(dev)
+    X_true = tc.from_numpy(np.load(os.path.join(grid_path, f_grid)).astype(np.float32)).to(dev)   
+    
     dia_len_n = int((sample_height_n**2 + sample_size_n**2 + sample_size_n**2)**0.5)
     n_voxel_batch = minibatch_size * sample_size_n
     n_voxel = sample_height_n * sample_size_n**2
@@ -80,6 +91,7 @@ def reconstruct_jXRFT_tomography(dev, recon_idx, cont_from_check_point, use_save
             recon_params.write("n_epoch = %d\n" %n_epoch)
             recon_params.write(str(this_aN_dic)+"\n") 
             recon_params.write("n_minibatch = %d\n" %n_minibatch)
+            recon_params.write("minibatch_size = %d\n" %minibatch_size)
             recon_params.write("b = %.9f\n" %b)
             recon_params.write("learning rate = %f\n" %lr)
             recon_params.write("theta_st = %.2f\n" %theta_st)
@@ -94,12 +106,12 @@ def reconstruct_jXRFT_tomography(dev, recon_idx, cont_from_check_point, use_save
             recon_params.write("det_from_sample_cm = %.2f\n" %det_from_sample_cm)
             recon_params.write("det_ds_spacing_cm = %.2f\n" %det_ds_spacing_cm)
         
-        loss_minibatch = tc.zeros(n_minibatch * n_batch * n_theta * n_epoch).to(dev)
-        mse_epoch = tc.zeros(n_epoch, len(this_aN_dic)).to(dev)
+        loss_minibatch = tc.zeros(n_minibatch * n_batch * n_theta * n_epoch, device = dev)
+        mse_epoch = tc.zeros(n_epoch, len(this_aN_dic), device = dev)
     
     
         for epoch in tqdm(range(n_epoch)):
-            for this_theta_idx, theta in enumerate(tqdm(theta_ls)):
+            for this_theta_idx, theta in enumerate(theta_ls):
         #         print("this_theta_idx = %d" %(this_theta_idx))
                 X_ap = np.load(os.path.join(recon_path, f_recon_grid) + '.npy').astype(np.float32)
                 X_ap = tc.from_numpy(X_ap).to(dev)
@@ -110,10 +122,9 @@ def reconstruct_jXRFT_tomography(dev, recon_idx, cont_from_check_point, use_save
                 del X_ap
                 lac = ap_map_rot.view(n_element, 1, 1, n_voxel) * FL_line_attCS_ls.view(n_element, n_lines, 1, 1)
                 lac = lac.expand(-1, -1, n_voxel_batch, -1).float()
-                
                 y1_true = tc.from_numpy(np.load(os.path.join(data_path, f_XRF_data)+'_{}'.format(this_theta_idx)+'.npy').astype(np.float32)).to(dev)
-                y2_true = tc.from_numpy(np.load(os.path.join(data_path, f_XRT_data)+'_{}'.format(this_theta_idx)+'.npy').astype(np.float32)).to(dev)
-             
+                y2_true = tc.from_numpy(np.load(os.path.join(data_path, f_XRT_data)+'_{}'.format(this_theta_idx)+'.npy').astype(np.float32)).to(dev)   
+                
                 for m in range(n_batch):                  
                     minibatch_ls = n_minibatch * m + minibatch_ls_0
                     
@@ -231,43 +242,44 @@ def reconstruct_jXRFT_tomography(dev, recon_idx, cont_from_check_point, use_save
 #                         print("total time: %g s \n" %(t8 - t0))
                         # print("\n") 
                         del model
+                    del P_this_batch
                 del lac
-                tc.cuda.empty_cache()
-                tqdm._instances.clear()            
+                tc.cuda.empty_cache()           
             mse_epoch[epoch] = tc.mean(tc.square(X - X_true).view(X.shape[0], X.shape[1]*X.shape[2]*X.shape[3]), dim=1)
             tqdm._instances.clear()   
             
         mse_epoch_tot = tc.mean(mse_epoch, dim=1)
         
-        # fig6 = plt.figure(figsize=(15,5))
-        # gs6 = gridspec.GridSpec(nrows=1, ncols=2, width_ratios=[1,1])
+        fig6 = plt.figure(figsize=(15,5))
+        gs6 = gridspec.GridSpec(nrows=1, ncols=2, width_ratios=[1,1])
     
-        # fig6_ax1 = fig6.add_subplot(gs6[0,0])
-        # fig6_ax1.plot(loss_minibatch.detach().numpy())
-        # fig6_ax1.set_xlabel('minibatch')
-        # fig6_ax1.set_ylabel('loss')
-        # fig6_ax1.yaxis.set_major_formatter(mtick.FormatStrFormatter('%.5e'))
+        fig6_ax1 = fig6.add_subplot(gs6[0,0])
+        fig6_ax1.plot(loss_minibatch.detach().cpu().numpy())
+        fig6_ax1.set_xlabel('minibatch')
+        fig6_ax1.set_ylabel('loss')
+        fig6_ax1.yaxis.set_major_formatter(mtick.FormatStrFormatter('%.5e'))
         
-        # fig6_ax2 = fig6.add_subplot(gs6[0,1])
-        # fig6_ax2.plot(mse_epoch_tot.detach().numpy())
-        # fig6_ax2.set_xlabel('epoch')
-        # fig6_ax2.set_ylabel('mse of model')
-        # fig6_ax2.yaxis.set_major_formatter(mtick.FormatStrFormatter('%.2f'))
-        # plt.savefig(os.path.join(recon_path, 'loss_and_tot_mse.pdf'))
+        fig6_ax2 = fig6.add_subplot(gs6[0,1])
+        fig6_ax2.plot(mse_epoch_tot.detach().cpu().numpy())
+        fig6_ax2.set_xlabel('epoch')
+        fig6_ax2.set_ylabel('mse of model')
+        fig6_ax2.yaxis.set_major_formatter(mtick.FormatStrFormatter('%.2f'))
+        plt.savefig(os.path.join(recon_path, 'loss_and_tot_mse.pdf'))
         
         
-        # fig7 = plt.figure(figsize=(X.shape[0]*6, 4))
-        # gs7 = gridspec.GridSpec(nrows=1, ncols=X.shape[0], width_ratios=[1]*X.shape[0])
-        # for i in range(X.shape[0]):
-        #     fig7_ax1 = fig7.add_subplot(gs7[0,i])
-        #     fig7_ax1.plot(mse_epoch[:,i].detach().numpy())
-        #     fig7_ax1.set_xlabel('epoch')
-        #     fig7_ax1.set_ylabel('mse of model (each element)')
-        #     fig7_ax1.set_title(str(list(this_aN_dic.keys())[i]))
-    #         fig7_ax1.yaxis.set_major_formatter(mtick.FormatStrFormatter('%.2f'))         
-        # plt.savefig(os.path.join(recon_path, 'mse_model.pdf'))
+        fig7 = plt.figure(figsize=(X.shape[0]*6, 4))
+        gs7 = gridspec.GridSpec(nrows=1, ncols=X.shape[0], width_ratios=[1]*X.shape[0])
+        for i in range(X.shape[0]):
+            fig7_ax1 = fig7.add_subplot(gs7[0,i])
+            fig7_ax1.plot(mse_epoch[:,i].detach().cpu().numpy())
+            fig7_ax1.set_xlabel('epoch')
+            fig7_ax1.set_ylabel('mse of model (each element)')
+            fig7_ax1.set_title(str(list(this_aN_dic.keys())[i]))
+            fig7_ax1.yaxis.set_major_formatter(mtick.FormatStrFormatter('%.2f'))         
+        plt.savefig(os.path.join(recon_path, 'mse_model.pdf'))
         
-        np.save(os.path.join(recon_path, 'loss_minibatch.npy'), loss_minibatch.detach().cpu().numpy())  
+        np.save(os.path.join(recon_path, 'loss_minibatch.npy'), loss_minibatch.detach().cpu().numpy()) 
+        np.save(os.path.join(recon_path, 'mse_model_elements.npy'), mse_epoch.detach().cpu().numpy())
         np.save(os.path.join(recon_path, 'mse_model.npy'), mse_epoch_tot.detach().cpu().numpy()) 
         dxchange.write_tiff(X.detach().cpu().numpy(), os.path.join(recon_path, f_recon_grid)+"_"+str(recon_idx), dtype='float32', overwrite=True)
         
@@ -275,6 +287,7 @@ def reconstruct_jXRFT_tomography(dev, recon_idx, cont_from_check_point, use_save
         recon_idx += 1
         
         loss_minibatch =  tc.from_numpy(np.load(os.path.join(recon_path, 'loss_minibatch.npy')).astype(np.float32))
+        mse_epoch = tc.from_numpy(np.load(os.path.join(recon_path, 'mse_model_elements.npy')).astype(np.float32))
         mse_epoch_tot = tc.from_numpy(np.load(os.path.join(recon_path, 'mse_model.npy')).astype(np.float32))
         X = tc.from_numpy(np.load(os.path.join(recon_path, f_recon_grid)+'.npy')).float().to(dev)
             
@@ -285,7 +298,7 @@ def reconstruct_jXRFT_tomography(dev, recon_idx, cont_from_check_point, use_save
             n_ending = len(params_list)
             
         with open(os.path.join(recon_path, f_recon_parameters), "a") as recon_params:
-            n_start_last = n_ending - 17
+            n_start_last = n_ending - 18
             
             previous_epoch = int(params_list[n_start_last][params_list[n_start_last].find("=")+1:])   
             recon_params.write("\n")
@@ -294,6 +307,7 @@ def reconstruct_jXRFT_tomography(dev, recon_idx, cont_from_check_point, use_save
             recon_params.write("n_epoch = %d\n" %n_epoch)
             recon_params.write(str(this_aN_dic)+"\n") 
             recon_params.write("n_minibatch = %d\n" %n_minibatch)
+            recon_params.write("minibatch_size = %d\n" %minibatch_size)
             recon_params.write("b = %f\n" %b)
             recon_params.write("learning rate = %f\n" %lr)
             recon_params.write("theta_st = %.2f\n" %theta_st)
@@ -307,17 +321,20 @@ def reconstruct_jXRFT_tomography(dev, recon_idx, cont_from_check_point, use_save
             recon_params.write("det_size_cm = %.2f\n" %det_size_cm)
             recon_params.write("det_from_sample_cm = %.2f\n" %det_from_sample_cm)
             recon_params.write("det_ds_spacing_cm = %.2f\n" %det_ds_spacing_cm)
+            
+        del recon_params
+        del params_list
         
-        loss_minibatch_cont = tc.zeros(n_minibatch * n_batch * n_theta * n_epoch).to(dev)
-        mse_epoch_cont = tc.zeros(n_epoch, len(this_aN_dic)).to(dev)
+        loss_minibatch_cont = tc.zeros(n_minibatch * n_batch * n_theta * n_epoch, device = dev)
+        mse_epoch_cont = tc.zeros(n_epoch, len(this_aN_dic), device = dev)
     
         for epoch in tqdm(range(n_epoch)):
-            for this_theta_idx, theta in enumerate(tqdm(theta_ls)):
+            for this_theta_idx, theta in enumerate(theta_ls):
                 
         #         print("this_theta_idx = %d" %(this_theta_idx))
                 X_ap = np.load(os.path.join(recon_path, f_recon_grid) + '.npy').astype(np.float32)
                 X_ap = tc.from_numpy(X_ap).to(dev)
-                
+               
                 ## Calculate lac using the current X_ap
                 theta = theta_ls[this_theta_idx]
                 ap_map_rot = rotate(X_ap, theta, dev).view(n_element, sample_height_n * sample_size_n, sample_size_n)
@@ -326,7 +343,7 @@ def reconstruct_jXRFT_tomography(dev, recon_idx, cont_from_check_point, use_save
                 lac = lac.expand(-1, -1, n_voxel_batch, -1).float()
                 
                 y1_true = tc.from_numpy(np.load(os.path.join(data_path, f_XRF_data)+'_{}'.format(this_theta_idx)+'.npy').astype(np.float32)).to(dev)
-                y2_true = tc.from_numpy(np.load(os.path.join(data_path, f_XRT_data)+'_{}'.format(this_theta_idx)+'.npy').astype(np.float32)).to(dev)
+                y2_true = tc.from_numpy(np.load(os.path.join(data_path, f_XRT_data)+'_{}'.format(this_theta_idx)+'.npy').astype(np.float32)).to(dev)  
                 
                 for m in range(n_batch):
                     minibatch_ls = n_minibatch * m + minibatch_ls_0
@@ -369,46 +386,47 @@ def reconstruct_jXRFT_tomography(dev, recon_idx, cont_from_check_point, use_save
                         np.save(os.path.join(recon_path, f_recon_grid)+'.npy', X.detach().cpu().numpy())
                         del model
                 del lac
-                tc.cuda.empty_cache()
-                tqdm._instances.clear()            
+                tc.cuda.empty_cache()          
             mse_epoch_cont[epoch] = tc.mean(tc.square(X - X_true).view(X.shape[0], X.shape[1]*X.shape[2]*X.shape[3]), dim=1)
             tqdm._instances.clear() 
             
         mse_epoch_tot_cont = tc.mean(mse_epoch_cont, dim=1)
         
-        loss_minibatch = tc.cat((loss_minibatch, loss_minibatch_cont))
-        mse_epoch_tot = tc.cat((mse_epoch_tot, mse_epoch_tot_cont))
-        
-        # fig6 = plt.figure(figsize=(15,5))
-        # gs6 = gridspec.GridSpec(nrows=1, ncols=2, width_ratios=[1,1])
+        loss_minibatch = tc.cat((loss_minibatch, loss_minibatch_cont.cpu()))
+        mse_epoch = tc.cat((mse_epoch, mse_epoch_cont.cpu()))
+        mse_epoch_tot = tc.cat((mse_epoch_tot, mse_epoch_tot_cont.cpu()))
+     
+        fig6 = plt.figure(figsize=(15,5))
+        gs6 = gridspec.GridSpec(nrows=1, ncols=2, width_ratios=[1,1])
     
-        # fig6_ax1 = fig6.add_subplot(gs6[0,0])
-        # fig6_ax1.plot(loss_minibatch.detach().numpy())
-        # fig6_ax1.set_xlabel('minibatch')
-        # fig6_ax1.set_ylabel('loss')
-        # fig6_ax1.yaxis.set_major_formatter(mtick.FormatStrFormatter('%.5e'))
+        fig6_ax1 = fig6.add_subplot(gs6[0,0])
+        fig6_ax1.plot(loss_minibatch.detach().cpu().numpy())
+        fig6_ax1.set_xlabel('minibatch')
+        fig6_ax1.set_ylabel('loss')
+        fig6_ax1.yaxis.set_major_formatter(mtick.FormatStrFormatter('%.5e'))
         
-        # fig6_ax2 = fig6.add_subplot(gs6[0,1])
-        # fig6_ax2.plot(mse_epoch_tot.detach().numpy())
-        # fig6_ax2.set_xlabel('epoch')
-        # fig6_ax2.set_ylabel('mse of model')
-        # fig6_ax2.yaxis.set_major_formatter(mtick.FormatStrFormatter('%.2f'))
-        # plt.savefig(os.path.join(recon_path, 'loss_and_tot_mse.pdf'))
+        fig6_ax2 = fig6.add_subplot(gs6[0,1])
+        fig6_ax2.plot(mse_epoch_tot.detach().cpu().numpy())
+        fig6_ax2.set_xlabel('epoch')
+        fig6_ax2.set_ylabel('mse of model')
+        fig6_ax2.yaxis.set_major_formatter(mtick.FormatStrFormatter('%.2f'))
+        plt.savefig(os.path.join(recon_path, 'loss_and_tot_mse.pdf'))
         
         
-        # fig7 = plt.figure(figsize=(X.shape[0]*6, 4))
-        # gs7 = gridspec.GridSpec(nrows=1, ncols=X.shape[0], width_ratios=[1]*X.shape[0])
-        # for i in range(X.shape[0]):
-        #     fig7_ax1 = fig7.add_subplot(gs7[0,i])
-        #     fig7_ax1.plot(mse_epoch[:,i].detach().numpy())
-        #     fig7_ax1.set_xlabel('epoch')
-        #     fig7_ax1.set_ylabel('mse of model (each element)')
-        #     fig7_ax1.set_title(str(list(this_aN_dic.keys())[i]))
-    #         fig7_ax1.yaxis.set_major_formatter(mtick.FormatStrFormatter('%.2f')) 
+        fig7 = plt.figure(figsize=(X.shape[0]*6, 4))
+        gs7 = gridspec.GridSpec(nrows=1, ncols=X.shape[0], width_ratios=[1]*X.shape[0])
+        for i in range(X.shape[0]):
+            fig7_ax1 = fig7.add_subplot(gs7[0,i])
+            fig7_ax1.plot(mse_epoch_cont[:,i].detach().cpu().numpy())
+            fig7_ax1.set_xlabel('epoch')
+            fig7_ax1.set_ylabel('mse of model (each element)')
+            fig7_ax1.set_title(str(list(this_aN_dic.keys())[i]))
+            fig7_ax1.yaxis.set_major_formatter(mtick.FormatStrFormatter('%.2f')) 
     
-        # plt.savefig(os.path.join(recon_path, 'mse_model.pdf'))
+        plt.savefig(os.path.join(recon_path, 'mse_model.pdf'))
         
-        np.save(os.path.join(recon_path, 'loss_minibatch.npy'), loss_minibatch.detach().cpu().numpy())  
+        np.save(os.path.join(recon_path, 'loss_minibatch.npy'), loss_minibatch.detach().cpu().numpy())
+        np.save(os.path.join(recon_path, 'mse_model_elements.npy'), mse_epoch.detach().cpu().numpy()) 
         np.save(os.path.join(recon_path, 'mse_model.npy'), mse_epoch_tot.detach().cpu().numpy()) 
         dxchange.write_tiff(X.detach().cpu().numpy(), os.path.join(recon_path, f_recon_grid)+"_"+str(recon_idx), dtype='float32', overwrite=True)
         
