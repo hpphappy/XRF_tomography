@@ -1,0 +1,18 @@
+starting_epoch = 0
+n_epoch = 20
+{'Ca': 20, 'Sc': 21}
+n_minibatch = 1
+minibatch_size = 1024
+b = 0.001000000
+learning rate = 0.001000
+theta_st = 0.00
+theta_end = 6.28
+n_theta = 200
+sample_size_n = 64
+sample_height_n = 64
+sample_size_cm = 0.01
+probe_energy = 20.00
+probe_cts = 1.00e+07
+det_size_cm = 0.24
+det_from_sample_cm = 1.60
+det_ds_spacing_cm = 0.10

@@ -1,2 +1,4 @@
-Intersecting_Length_64_64_64
-Intersecting_Length_5_5_5
+*.npy
+!grid_concentration.npy
+*.pdf
+*.tiff
