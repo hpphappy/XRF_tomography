@@ -209,22 +209,23 @@ params_3d_32_32_32_nElements_2 = {'P_save_path': os.path.join('./data/sample5_si
                    'dev': dev
                   }
 
-params_3d_64_64_64_nElements_2_2 = {'P_save_path': os.path.join('./data/sample7_size_64_recon', 'Intersecting_Length_64_64_64'), 
+params_3d_64_64_64_nElements_2_2 = {'P_save_path': os.path.join('./data/sample8_size_64_recon', 'Intersecting_Length_64_64_64'), 
                    'theta_st': tc.tensor(0).to(dev), 
                    'theta_end': tc.tensor(2 * np.pi).to(dev),
                    'n_theta': tc.tensor(200).to(dev),
-                   'src_path': os.path.join('./data/sample7_size_64_pad/nElements_2', 'grid_concentration.npy'),
-                   'det_size_cm': 0.24,
+                   'src_path': os.path.join('./data/sample8_size_64_pad/nElements_2', 'grid_concentration.npy'),
+                   'det_size_cm': 0.9,
                    'det_from_sample_cm': 1.6,
-                   'det_ds_spacing_cm': 0.1,
+                   'det_ds_spacing_cm': 0.4,
                    'sample_size_n': tc.tensor(64).to(dev),
                    'sample_size_cm': tc.tensor(0.01).to(dev),                   
                    'sample_height_n': tc.tensor(64).to(dev),
                    'this_aN_dic': {"Ca": 20, "Sc": 21},
                    'probe_cts': tc.tensor(1.0E7).to(dev),
                    'probe_energy': np.array([20.0]),                    
-                   'save_path': './data/sample7_size_64_data/nElements_2',
-                   'save_fname': 'XRF_sample7',
+                   'save_path': './data/sample8_size_64_data/nElements_2/nThetas_200_limitedSolidAngle/solidAngle_frac_0.0156/Noise',
+                   'save_fname': 'XRF_sample8',
+                   'Poisson_noise': False,                
                    'dev': dev
                   }
 

@@ -179,7 +179,7 @@ params_3d_32_32_32_nElements_2 = {'src_path': os.path.join('./data/sample5_size_
                    'dev': dev
                   }
 
-params_3d_64_64_64_nElements_2_2 = {'src_path': os.path.join('./data/sample7_size_64_pad/nElements_2', 'grid_concentration.npy'),
+params_3d_64_64_64_nElements_2_2 = {'src_path': os.path.join('./data/sample8_size_64_pad/nElements_2', 'grid_concentration.npy'),
                    'theta_st': tc.tensor(0).to(dev), 
                    'theta_end': tc.tensor(2 * np.pi).to(dev),
                    'n_theta': tc.tensor(200).to(dev), 
@@ -189,9 +189,10 @@ params_3d_64_64_64_nElements_2_2 = {'src_path': os.path.join('./data/sample7_siz
                    'this_aN_dic': {"Ca": 20, "Sc": 21},
                    'probe_energy': np.array([20.0]),
                    'probe_cts': tc.tensor(1.0E7).to(dev), 
-                   'save_path': './data/sample7_size_64_data/nElements_2',
-                   'save_fname': 'XRT_sample7',
+                   'save_path': './data/sample8_size_64_data/nElements_2/nThetas_200_limitedSolidAngle/solidAngle_frac_0.0156/Noise',
+                   'save_fname': 'XRT_sample8',
                    'theta_sep': True,
+                   'Poisson_noise': False,             
                    'dev': dev
                   }
 
