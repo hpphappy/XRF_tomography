@@ -209,7 +209,7 @@ params_3d_32_32_32_nElements_2 = {'P_save_path': os.path.join('./data/sample5_si
                    'dev': dev
                   }
 
-params_3d_64_64_64_nElements_2_2 = {'P_save_path': os.path.join('./data/sample8_size_64_recon', 'Intersecting_Length_64_64_64'), 
+params_3d_64_64_64_nElements_2_2 = {'P_save_path': './data/P_array/sample_64_64_64/detSpacing_0.4_dpts_5/Intersecting_Length_64_64_64', 
                    'theta_st': tc.tensor(0).to(dev), 
                    'theta_end': tc.tensor(2 * np.pi).to(dev),
                    'n_theta': tc.tensor(200).to(dev),
@@ -225,7 +225,7 @@ params_3d_64_64_64_nElements_2_2 = {'P_save_path': os.path.join('./data/sample8_
                    'probe_energy': np.array([20.0]),                    
                    'save_path': './data/sample8_size_64_data/nElements_2/nThetas_200_limitedSolidAngle/solidAngle_frac_0.0156/Noise',
                    'save_fname': 'XRF_sample8',
-                   'Poisson_noise': False,                
+                   'Poisson_noise': True,                
                    'dev': dev
                   }
 

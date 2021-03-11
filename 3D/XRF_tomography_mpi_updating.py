@@ -44,7 +44,7 @@ def reconstruct_jXRFT_tomography(dev, selfAb, recon_idx, cont_from_check_point, 
                                  ini_kind, f_recon_parameters, n_epoch, minibatch_size, b, lr, init_const, 
                                  fl_line_groups, fl_K, fl_L, fl_M, group_lines, theta_st, theta_end, n_theta,
                                  sample_size_n, sample_height_n, sample_size_cm,
-                                 probe_energy, probe_cts, det_size_cm, det_from_sample_cm, det_ds_spacing_cm, f_P,
+                                 probe_energy, probe_cts, det_size_cm, det_from_sample_cm, det_ds_spacing_cm, P_folder, f_P,
                                  ):
 
     
@@ -71,16 +71,17 @@ def reconstruct_jXRFT_tomography(dev, selfAb, recon_idx, cont_from_check_point, 
     n_batch = (sample_height_n * sample_size_n) // (n_ranks * minibatch_size) #scalar
     theta_ls = - tc.linspace(theta_st, theta_end, n_theta+1)[:-1].to(dev) #dev
     n_element = len(this_aN_dic) #scalar
-    P_save_path = os.path.join(recon_path, f_P) #string
+    
     
     if rank == 0: 
+        if not os.path.exists(recon_path):
+            os.mkdir(recon_path)     
+        
         longest_int_length, n_det, P = intersecting_length_fl_detectorlet_3d(det_size_cm, det_from_sample_cm, det_ds_spacing_cm,
                                                   sample_size_n.cpu().numpy(), sample_size_cm.cpu().numpy(),
-                                                  sample_height_n.cpu().numpy(), P_save_path) #cpu
+                                                  sample_height_n.cpu().numpy(), P_folder, f_P) #cpu
         
         P = P.astype(np.float32)
-        if not os.path.exists(recon_path):
-            os.mkdir('recon_path')
         
     else:
         n_det = None
@@ -91,13 +92,12 @@ def reconstruct_jXRFT_tomography(dev, selfAb, recon_idx, cont_from_check_point, 
     if cont_from_check_point == False: 
         
         if use_saved_initial_guess:
-            X = np.load(os.path.join(recon_path, f_initial_guess)+'.npy')
-#             X = tc.from_numpy(X).float().to(dev) #dev  
+            X = np.load(os.path.join(recon_path, f_initial_guess)+'.npy').astype(np.float32)
+            X = tc.from_numpy(X).float() #cpu 
         else:
             X = initialize_guess_3d(dev, ini_kind, grid_path, f_grid, recon_path, f_recon_grid, f_initial_guess, init_const).cpu() #cpu
             
             if rank == 0:
-
                 ## Save the initial guess for future reference
                 np.save(os.path.join(recon_path, f_initial_guess +'.npy'), X)
                 dxchange.write_tiff(X, os.path.join(recon_path, f_initial_guess), dtype='float32', overwrite=True)
@@ -106,11 +106,9 @@ def reconstruct_jXRFT_tomography(dev, selfAb, recon_idx, cont_from_check_point, 
                 np.save(os.path.join(recon_path, f_recon_grid +'.npy'), X)
                 dxchange.write_tiff(X, os.path.join(recon_path, f_recon_grid), dtype='float32', overwrite=True)
                 
-#                 X = tc.from_numpy(X).float().to(dev) #dev
+        X = X.to(dev) #dev  # need fo be modified, so that the initial X is generated at CPU, then sent to GPU division of each rank
             
         if rank == 0:
-            rand_idx = tc.randperm(n_theta)
-            theta_ls = theta_ls[rand_idx]
             with open(os.path.join(recon_path, f_recon_parameters), "w") as recon_params:
                 recon_params.write("starting_epoch = 0\n")
                 recon_params.write("n_epoch = %d\n" %n_epoch)
@@ -132,36 +130,32 @@ def reconstruct_jXRFT_tomography(dev, selfAb, recon_idx, cont_from_check_point, 
 
                 loss_epoch = tc.zeros(n_epoch)
                 mse_epoch = tc.zeros(n_epoch, len(this_aN_dic))
-                
-        else:
-            rand_idx = tc.ones(n_theta)
-        
-        rand_idx = comm.bcast(rand_idx, root=0) 
-        theta_ls = comm.bcast(theta_ls, root=0)       
-        comm.Barrier()        
+                  
+               
         
         
         for epoch in range(n_epoch):
             t0_epoch = time.perf_counter()
+            if rank == 0:
+                rand_idx = tc.randperm(n_theta)
+                theta_ls = theta_ls[rand_idx]  
+            else:
+                rand_idx = tc.ones(n_theta)
+
+            comm.Barrier() 
+            rand_idx = comm.bcast(rand_idx, root=0) 
+            theta_ls = comm.bcast(theta_ls, root=0)    
             
             stdout_options = {'root':0, 'output_folder': recon_path, 'save_stdout': True, 'print_terminal': True}
-            timestr = str(datetime.datetime.today())
+            timestr = str(datetime.datetime.today())     
             print_flush_root(rank, val=f"epoch: {epoch}, time: {timestr}", output_file='', **stdout_options)
             
             for idx, theta in enumerate(theta_ls):
                 this_theta_idx = rand_idx[idx]
-                if rank == 0:
-                    X = np.load(os.path.join(recon_path, f_recon_grid) + '.npy').astype(np.float32) #cpu
-                else:
-                    X = np.zeros((n_element, sample_height_n, sample_size_n, sample_size_n)).astype(np.float32)
-                
-                comm.Bcast(X, root=0)
-                X = tc.from_numpy(X).to(dev)
-                comm.Barrier()
                 
                 ## Calculate lac using the current X. lac (linear attenuation coefficient) has the dimension of [n_element, n_lines, n_voxel_minibatch, n_voxel]
                 if selfAb == True:
-                    X_ap_rot = rotate(X, theta, dev).view(n_element, sample_height_n * sample_size_n, sample_size_n) #dev
+                    X_ap_rot = rotate(X, theta, dev) #dev
                     lac = X_ap_rot.view(n_element, 1, 1, n_voxel) * FL_line_attCS_ls.view(n_element, n_lines, 1, 1) #dev
                     lac = lac.expand(-1, -1, n_voxel_batch, -1).float() #dev
                 
@@ -172,7 +166,7 @@ def reconstruct_jXRFT_tomography(dev, selfAb, recon_idx, cont_from_check_point, 
                 y1_true = tc.from_numpy(np.load(os.path.join(data_path, f_XRF_data)+'_{}'.format(this_theta_idx)+'.npy').astype(np.float32)).to(dev) #dev
                 y2_true = tc.from_numpy(np.load(os.path.join(data_path, f_XRT_data)+'_{}'.format(this_theta_idx)+'.npy').astype(np.float32)).to(dev) #dev
              
-                for m in range(n_batch):               
+                for m in range(n_batch):                    
                     minibatch_ls = n_ranks * m + minibatch_ls_0  #dev
                     p = minibatch_ls[rank]
                     P_batch = None
@@ -185,16 +179,15 @@ def reconstruct_jXRFT_tomography(dev, selfAb, recon_idx, cont_from_check_point, 
                     
                     P_minibatch = np.zeros((n_det, 3, dia_len_n * minibatch_size * sample_size_n)).astype(np.float32)
            
-                    comm.Barrier()
                     comm.Scatter(P_batch, P_minibatch, root=0)  #cpu
-                    P_minibatch = tc.from_numpy(P_minibatch).to(dev) #dev                                               
                     comm.Barrier()
+                    P_minibatch = tc.from_numpy(P_minibatch).to(dev) #dev                                               
                     
                     model = PPM(dev, selfAb, lac, X, p, n_element, sample_height_n, minibatch_size,
                                  sample_size_n, sample_size_cm,
                                  this_aN_dic, probe_energy, probe_cts,
                                  theta_st, theta_end, n_theta, this_theta_idx,
-                                 n_det, P_minibatch)
+                                 n_det, P_minibatch, det_size_cm, det_from_sample_cm)
                     
                     optimizer = tc.optim.Adam(model.parameters(), lr=lr)              
                     
@@ -230,24 +223,29 @@ def reconstruct_jXRFT_tomography(dev, selfAb, recon_idx, cont_from_check_point, 
                     if rank == 0: 
                         updated_batch = tc.cat(updated_batch, dim=1)
                         X[:, minibatch_size * p // sample_size_n : minibatch_size * (p + n_ranks) // sample_size_n, :, :] = updated_batch.detach()
-
-                    del model
-                    comm.Barrier()
-                
-                if rank == 0:                  
-                    X = tc.clamp(X, 0, float('inf'))
-                    X_cpu = X.cpu()
-                    np.save(os.path.join(recon_path, f_recon_grid)+'.npy', X_cpu.numpy())
+                        X = tc.clamp(X, 0, float('inf'))
              
+                    comm.Barrier()
+                    X = comm.bcast(X, root=0).to(dev)
+                    comm.Barrier()
+                    
+                    del model               
+            
                 del lac
                 tc.cuda.empty_cache()
                 
             loss = loss.detach().item()           
             loss_sum = comm.reduce(loss, op=MPI.SUM, root=0) 
             if rank == 0:
+                X_cpu = X.cpu()
                 loss = loss_sum / n_ranks
                 loss_epoch[epoch] = loss
-                mse_epoch[epoch] = tc.mean(tc.square(X_cpu - X_true).view(X_cpu.shape[0], X_cpu.shape[1]*X_cpu.shape[2]*X_cpu.shape[3]), dim=1)
+                mse_epoch[epoch] = tc.mean(tc.square(X_cpu - X_true).view(X_cpu.shape[0], X_cpu.shape[1]*X_cpu.shape[2]*X_cpu.shape[3]), dim=1)                
+                np.save(os.path.join(recon_path, f_recon_grid)+'.npy', X_cpu.numpy())
+                     
+            stdout_options = {'root':0, 'output_folder': recon_path, 'save_stdout': True, 'print_terminal': False}
+            per_epoch_time = time.perf_counter() - t0_epoch
+            print_flush_root(rank, val=per_epoch_time, output_file=f'per_epoch_time_mb_size_{minibatch_size}.csv', **stdout_options)
                  
             
         if rank == 0:    
@@ -388,7 +386,7 @@ def reconstruct_jXRFT_tomography(dev, selfAb, recon_idx, cont_from_check_point, 
                                  sample_size_n, sample_size_cm,
                                  this_aN_dic, probe_energy, probe_cts,
                                  theta_st, theta_end, n_theta, this_theta_idx,
-                                 n_det, P_minibatch)
+                                 n_det, P_minibatch, det_size_cm, det_from_sample_cm)
 
                     optimizer = tc.optim.Adam(model.parameters(), lr=lr)   
             
@@ -441,7 +439,10 @@ def reconstruct_jXRFT_tomography(dev, selfAb, recon_idx, cont_from_check_point, 
                 loss = loss_sum / n_ranks
                 loss_epoch_cont[epoch] = loss
                 mse_epoch_cont[epoch] = tc.mean(tc.square(X - X_true).view(X.shape[0], X.shape[1]*X.shape[2]*X.shape[3]), dim=1)
-                
+            stdout_options = {'root':0, 'output_folder': recon_path, 'save_stdout': True, 'print_terminal': False}
+            per_epoch_time = time.perf_counter() - t0_epoch
+            print_flush_root(rank, val=per_epoch_time, output_file=f'per_epoch_time_mb_size_{minibatch_size}.csv', **stdout_options)
+
             
         if rank == 0:    
             mse_epoch_tot_cont = tc.mean(mse_epoch_cont, dim=1)
@@ -470,7 +471,7 @@ def reconstruct_jXRFT_tomography(dev, selfAb, recon_idx, cont_from_check_point, 
 
             fig7 = plt.figure(figsize=(X_cpu.shape[0]*6, 4))
             gs7 = gridspec.GridSpec(nrows=1, ncols=X_cpu.shape[0], width_ratios=[1]*X_cpu.shape[0])
-             for i in range(X_cpu.shape[0]):
+            for i in range(X_cpu.shape[0]):
                 fig7_ax1 = fig7.add_subplot(gs7[0,i])
                 fig7_ax1.plot(mse_epoch[:,i].detach().numpy())
                 fig7_ax1.set_xlabel('epoch')

@@ -14,7 +14,6 @@ import torch as tc
 import torch.nn.functional as F
 import os
 from tqdm import tqdm
-import pickle
 
 # Note: xraylib uses keV 
 
@@ -214,7 +213,7 @@ def MakeFLlinesDictionary(this_aN_dic, probe_energy,
                           group_lines = True):
     """   
 
-        Parameters
+    Parameters
     ----------
     this_aN_dic: dictionary
         a dictionary of items with key = element symbol (string), and value = atomic number
@@ -338,8 +337,8 @@ def MakeFLlinesDictionary(this_aN_dic, probe_energy,
 
 def generate_fl_signal_from_each_voxel_3d(src_path, theta_st, theta_end, n_theta, sample_size_n, sample_height_n, sample_size_cm, this_aN_dic, probe_energy, dev):
     """
-    This function calculates the ratio of fluoresence signal gen
-    The rotational axis is along dim 1 of the grid
+    This function calculates the ratio of fluoresence signal genenerated at each voxel at each object angle
+    The rotational axis is along dim 0 of the grid
 
     Parameters
     ----------
@@ -376,8 +375,8 @@ def generate_fl_signal_from_each_voxel_3d(src_path, theta_st, theta_end, n_theta
 
     Returns
     -------
-    fl_map_tot : TYPE
-        DESCRIPTION.
+    fl_map_tot : torch tensor with the dimension (n_theta, n_lines, sample_height_n * sample_size_n * sample_size_n)
+        
 
     """
     element_ls = np.array(list(this_aN_dic.keys()))
@@ -412,14 +411,15 @@ def generate_fl_signal_from_each_voxel_3d(src_path, theta_st, theta_end, n_theta
 ### There're 3 types of plane could be specified: x = some constant (d_x), y = some constant (d_y) and z = some constant (d_z)
 ### The correspoinding intersecting points can be solved using trace_beam_x, trace_beam_y, trace_beam_z respectively
 
-# The ray uses a parametric form with a parameter, t: R(t) = (1-t) * S + t * D, S and D are the coordinates which spefify the points of sample voxels and the detector points
-# The intersecting coordinates: (x, y, z) = (Ix, Iy, Iz) at t=t'
+# The ray uses a parametric form with a parameter, t: R(t) = (1-t) * S + t * D; S and D are the coordinates of sample voxels and the detector points
+# S = (z_s, x_s, y_s); D = (z_d, x_d, y_d)
+# The intersecting coordinates: (z, x, y) = (Iz, Ix, Iy) at t=t'
 # 4 equations are used to solve the intersecting point:
 # From the parametric function of the ray
 #    Iz = (1-t') * z_s + t' * z_d
 #    Ix = (1-t') * x_s + t' * x_d
 #    Iy = (1-t') * y_s + t' * y_d
-# From the function fo the plane: 
+# From the function of the plane: 
 #    Ix = some constant (d_x), Iy = some constant (d_y) or Iz = some constant (d_z)
 
 # Rearrange the equations above to solve (Iz, Ix, Iy, t')
@@ -427,6 +427,7 @@ def generate_fl_signal_from_each_voxel_3d(src_path, theta_st, theta_end, n_theta
 # n_batch is the number of planes we put into the equation that we want to solve the intersecting point with the the ray
 
 def trace_beam_z(z_s, x_s, y_s, z_d, x_d, y_d, d_z_ls):
+    # For the case that the voxel and the detector have the same z coordinate, the connection of them doesn't have any intersection on any plane along z-direction.
     if len(d_z_ls) == 0 or z_s == z_d:
         Z = np.stack((np.array([]), np.array([]), np.array([])), axis=-1)
     else:
@@ -444,6 +445,7 @@ def trace_beam_z(z_s, x_s, y_s, z_d, x_d, y_d, d_z_ls):
     return Z
 
 def trace_beam_x(z_s, x_s, y_s, z_d, x_d, y_d, d_x_ls):
+    # For the case that the voxel and the detector have the same x coordinate, the connection of them doesn't have any intersection on any plane along x-direction.
     if len(d_x_ls) == 0:
         X = np.stack((np.array([]), np.array([]), np.array([])), axis=-1)
     else:    
@@ -461,6 +463,7 @@ def trace_beam_x(z_s, x_s, y_s, z_d, x_d, y_d, d_x_ls):
     return X
 
 def trace_beam_y(z_s, x_s, y_s, z_d, x_d, y_d, d_y_ls):
+    # For the case that the voxel and the detector have the same y coordinate, the connection of them doesn't have any intersection on any plane along y-direction.
     if len(d_y_ls) == 0 or y_s == y_d:
         Y = np.stack((np.array([]), np.array([]), np.array([])), axis=-1)
     else:
@@ -546,7 +549,7 @@ def intersecting_length_fl_detectorlet_3d(det_size_cm, det_from_sample_cm, det_d
     if os.path.isfile(P_save_path + ".npy"):
         P = np.load(P_save_path + ".npy")
         n_det = P.shape[0]
-        longest_int_length = P.shape[2]//(sample_height_n * sample_size_n**2)
+        longest_int_length_n = P.shape[2]//(sample_height_n * sample_size_n**2)
         print(f"numbder of detecting points: {n_det}")
         
     
@@ -685,8 +688,7 @@ def intersecting_length_fl_detectorlet_3d(det_size_cm, det_from_sample_cm, det_d
             P_short[:,:,j * longest_int_length: (j+1) * longest_int_length] = P[:,:, j * dia_len_n: j * dia_len_n + longest_int_length]
         
         P = P.numpy()
-        P_short = P_short.numpy()
-        
+        P_short = P_short.numpy()   
         np.save(P_save_path + '_short.npy', P_short)
         np.save(P_save_path + ".npy", P)
  
@@ -763,8 +765,7 @@ def create_XRF_data_single_theta_3d(n_det, P, theta_st, theta_end, n_theta, src_
     if Poisson_noise == True:
         random_noise_generator = default_rng()
         fl_signal_SA = random_noise_generator.poisson(fl_signal_SA)
-        
-    
+            
     np.save(os.path.join(save_path, save_fname +'_{}'.format(this_theta_idx)), fl_signal_SA)
     
     return fl_signal_SA    

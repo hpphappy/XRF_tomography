@@ -23,10 +23,8 @@ def print_flush(val, output_file='', output_folder='./', save_stdout=True, print
         with open(file_path, 'a') as f:
             writer = csv.writer(f, delimiter=',')
             writer.writerow([val])
-            
-    sys.stdout.flush() 
+     
     return None
-
 
 def print_flush_root(this_rank, val, output_file='', root=0, output_folder='./', save_stdout=True, print_terminal=False):
     # I want the file name to be the name of the quantity, the val is the value of the quantity

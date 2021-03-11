@@ -2,3 +2,5 @@
 !grid_concentration.npy
 *.pdf
 *.tiff
+*.h5
+*_short.h5

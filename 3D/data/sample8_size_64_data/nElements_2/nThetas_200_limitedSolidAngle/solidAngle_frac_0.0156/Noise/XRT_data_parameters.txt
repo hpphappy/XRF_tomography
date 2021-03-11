@@ -12,5 +12,5 @@
  'save_path': './data/sample8_size_64_data/nElements_2/nThetas_200_limitedSolidAngle/solidAngle_frac_0.0156/Noise',
  'save_fname': 'XRT_sample8',
  'theta_sep': True,
- 'Poisson_noise': False,
+ 'Poisson_noise': True,
  'dev': 'cpu'}

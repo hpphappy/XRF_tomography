@@ -189,10 +189,10 @@ params_3d_64_64_64_nElements_2_2 = {'src_path': os.path.join('./data/sample8_siz
                    'this_aN_dic': {"Ca": 20, "Sc": 21},
                    'probe_energy': np.array([20.0]),
                    'probe_cts': tc.tensor(1.0E7).to(dev), 
-                   'save_path': './data/sample8_size_64_data/nElements_2/nThetas_200_limitedSolidAngle/solidAngle_frac_0.0156/Noise',
+                    'save_path': './data/sample8_size_64_data/nElements_2/nThetas_200_limitedSolidAngle/solidAngle_frac_0.0156/Noise',
                    'save_fname': 'XRT_sample8',
                    'theta_sep': True,
-                   'Poisson_noise': False,             
+                   'Poisson_noise': True,             
                    'dev': dev
                   }
 
