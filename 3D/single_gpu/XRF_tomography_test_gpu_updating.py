@@ -40,7 +40,7 @@ def reconstruct_jXRFT_tomography(dev, selfAb, recon_idx, cont_from_check_point, 
                                  ini_kind, f_recon_parameters, n_epoch, n_minibatch, minibatch_size, b, lr, init_const, 
                                  fl_line_groups, fl_K, fl_L, fl_M, group_lines, theta_st, theta_end, n_theta,
                                  sample_size_n, sample_height_n, sample_size_cm,
-                                 probe_energy, probe_cts, det_size_cm, det_from_sample_cm, det_ds_spacing_cm, f_P,
+                                 probe_energy, probe_cts, det_size_cm, det_from_sample_cm, det_ds_spacing_cm, P_folder, f_P,
                                 ):
     stdout_options = {'output_folder': recon_path, 'save_stdout': True, 'print_terminal': False} 
     if not os.path.exists(recon_path):
@@ -65,7 +65,7 @@ def reconstruct_jXRFT_tomography(dev, selfAb, recon_idx, cont_from_check_point, 
     n_batch = (sample_height_n * sample_size_n) // (n_minibatch * minibatch_size) 
     theta_ls = - tc.linspace(theta_st, theta_end, n_theta+1)[:-1].to(dev)
     n_element = len(this_aN_dic)
-    P_save_path = os.path.join(recon_path, f_P)
+    P_save_path = os.path.join(P_folder, f_P)
     
     longest_int_length, n_det, P = intersecting_length_fl_detectorlet_3d(det_size_cm, det_from_sample_cm, det_ds_spacing_cm,
                                               sample_size_n.cpu().numpy(), sample_size_cm.cpu().numpy(),
@@ -144,6 +144,7 @@ def reconstruct_jXRFT_tomography(dev, selfAb, recon_idx, cont_from_check_point, 
                 
                 for m in range(n_batch):                  
                     minibatch_ls = n_minibatch * m + minibatch_ls_0 
+                    print_flush(val=minibatch_ls, output_file=f'minibatch_ls.csv', **stdout_options)
                     
                     t0_distriP = time.perf_counter()
                     P_this_batch = P[:,:, minibatch_ls[0] * dia_len_n * minibatch_size * sample_size_n : 
@@ -152,7 +153,10 @@ def reconstruct_jXRFT_tomography(dev, selfAb, recon_idx, cont_from_check_point, 
                     P_this_batch = P_this_batch.permute(2,0,1,3)
                     distriP_time = time.perf_counter() - t0_distriP
                     print_flush(val=distriP_time, output_file=f'distribute_P_computing_time_mb_size_{minibatch_size}.csv', **stdout_options)
-                                                                            
+                    
+                    print_flush(val=minibatch_ls[0] * dia_len_n * minibatch_size * sample_size_n, output_file=f'P_start_idx.csv', **stdout_options)
+                    print_flush(val= (minibatch_ls[0] + len(minibatch_ls)) * dia_len_n * minibatch_size * sample_size_n, output_file=f'P_end_idx.csv', **stdout_options)
+                    
                     for ip, p in enumerate(minibatch_ls):                               
                         
                         t0_createModel = time.perf_counter()

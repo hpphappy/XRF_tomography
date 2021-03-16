@@ -7,6 +7,8 @@ Created on Sat Nov  7 23:34:50 2020
 """
 
 from mpi4py import MPI
+import datetime
+from numpy.random import default_rng
 import h5py
 import numpy as np
 import xraylib as xlib
@@ -16,6 +18,11 @@ import torch.nn.functional as F
 import os
 import sys
 from tqdm import tqdm
+from misc_mpi_updating import print_flush_root
+
+comm = MPI.COMM_WORLD
+n_ranks = comm.Get_size()
+rank = comm.Get_rank()
 
 # Note: xraylib uses keV 
 
@@ -427,7 +434,6 @@ def generate_fl_signal_from_each_voxel_3d(src_path, theta_st, theta_end, n_theta
 # Rearrange the equations above to solve (Iz, Ix, Iy, t')
 # Define the system of equation AX = b to solve the intersecting point, A is with the dimension: (n_batch, 4, 4), b is with the dimension: (n_batch, 4, 1)
 # n_batch is the number of planes we put into the equation that we want to solve the intersecting point with the the ray
-
 def trace_beam_z(z_s, x_s, y_s, z_d, x_d, y_d, d_z_ls):
     # For the case that the voxel and the detector have the same z coordinate, the connection of them doesn't have any intersection on any plane along z-direction.
     if len(d_z_ls) == 0 or z_s == z_d:
@@ -482,8 +488,79 @@ def trace_beam_y(z_s, x_s, y_s, z_d, x_d, y_d, d_y_ls):
     
     return Y
 
+def intersecting_length_fl_detectorlet_3d_mpi_write_h5(n_ranks, rank, det_size_cm, det_from_sample_cm, det_ds_spacing_cm, sample_size_n, sample_size_cm, sample_height_n, P_folder, f_P):
+    """
+    Parameters
+    ----------
+    det_size_cm : float
+        The diameter of the circle to distribute the detector points
+        
+    det_from_sample_cm : float
+        The distance between the detector plane and the sample boundary plane
+    
+    det_ds_spacing_cm : float
+        The spacing between detector points
+    
+    sample_size_n: int scalar
+        sample size in number of pixles on the side along the probe propagation axis
+    
+    sample_size_cm: scalar
+        sample size in cm on the side along the probe propagation axis
+        
+    sample_height_n : integer
+        The height of the sample along the rotational axis (in number of pixels)
+        
+    P_save_path : string
+        The path that saves the tensor P
 
-def intersecting_length_fl_detectorlet_3d_mpi_write_h5(n_ranks, det_size_cm, det_from_sample_cm, det_ds_spacing_cm, sample_size_n, sample_size_cm, sample_height_n, P_folder, f_P):
+    Returns
+    -------
+    n_det : integer
+        The number of the detector points within the circle with the diatmeter, det_size_cm.
+    
+    P : torch tensor
+        a tensor with the dimension (n_det, 3, n_voxels *  diagnal_length_n)
+        n_voxels: the number of voxels of the sample.
+        diagnal_length_n: the number of voxels along the diagnol direction of the sample
+        
+        P tensor contains the information of intersecting voxels of the emitted XRF rays (along the connection between each FL emitting source voxel and each detector point)
+        For each detector point (total: n_det), 3 rows of values representing the following values:
+            1st row, the index of the FL emitting soruce voxel. The index is the index of the flattened grid of the sample.
+            2nd row, the index of the intersecting voxels.
+            3rd row, the intersecting length in cm.
+            
+            
+            For example:
+                [[0, 0, 0, 0, 0, 0, ..., 0, 1, 1, 1, 1, 0, ..., 0, 2, 2, 2, 0, ..., 0, ......, 0, ...,0]
+                                            |_________| \________|
+                                                      \          \The remain (diagnal_length_n - 4) spaces are then set to 0
+                                                      \4 intersecting voxels from the emitting source at index 1  
+                 
+                 [5,10,15,20,25, 0, ..., 0, 6,11,16,21, 0, ..., 0, 7,12,17, 0, ..., 0, ......, 0, ...,0]
+                                            |_________| \________|
+                                                      \          \The remain (diagnal_length_n - 4) spaces are then set to 0
+                                                      \4 intersecting voxels at index 6, 11, 16, 21 from the emitting source at index 1  
+                 
+                 
+                 [0.1, 0.1, 0.1, 0.1, 0, 0, ..., 0, 0.2, 0.2, 0.2 ,0.2, 0, ..., 0, 0.3, 0.3, 0.3, 0, ..., 0, ......, 0, ...,0]]
+                                                    |_________________| \________|
+                                                      \                          \The remain (diagnal_length_n - 4) spaces are then set to 0
+                                                      \4 intersecting lengths corresponging to the intersecting voxels in the 2nd row of this tensor
+                
+            The intersecting number of voxels from each source is not always the same. The maximal possible intersecting number of voxels
+            is the number of voxels along the diagnol direction of the sample.
+            Therefore, diagnal_length_n spaces are used to store the intersecting voxels for each emitting source.
+            In most cases, the number of intersecting voxels for each source voxel is less than diagnal_length_n, The remaining spaces are filled with zeros.
+    
+    """
+    if rank == 0:
+        with open(os.path.join(P_folder, 'P_array_parameters.txt'), "w") as P_params:
+            P_params.write("det_size_cm = %f\n" %det_size_cm)
+            P_params.write("det_from_sample_cm = %f\n" %det_from_sample_cm)
+            P_params.write("det_ds_spacing_cm = %f\n" %det_ds_spacing_cm)
+            P_params.write("sample_size_n = %f\n" %sample_size_n)
+            P_params.write("sample_size_cm = %f\n" %sample_size_cm)
+            P_params.write("sample_height_n = %f\n" %sample_height_n)
             
     layers_divisible_by_n_ranks = sample_height_n % n_ranks
     if layers_divisible_by_n_ranks != 0:
@@ -559,7 +636,7 @@ def intersecting_length_fl_detectorlet_3d_mpi_write_h5(n_ranks, det_size_cm, det
     voxel_pos_ls_flat_minibatch = voxel_pos_ls_flat[rank * n_layers_each_rank * sample_size_n**2 : (rank+1) * n_layers_each_rank * sample_size_n**2]
     
     f = h5py.File(P_save_path +'.h5', 'w', driver='mpio', comm=comm)
-    P = f.create_dataset('P_array', (n_det, 3, dia_len_n * sample_height_n * sample_size_n**2), dtype='f4')
+    P = f.create_dataset('P_array', (n_det, 3, dia_len_n * sample_height_n * sample_size_n**2), dtype='f4', data=np.zeros((n_det, 3, dia_len_n * sample_height_n * sample_size_n**2)))
     
     
     j_offset = rank * n_layers_each_rank * sample_size_n**2
@@ -625,14 +702,15 @@ def intersecting_length_fl_detectorlet_3d_mpi_write_h5(n_ranks, det_size_cm, det
             int_ls_shift = np.zeros((int_ls.shape))
             int_ls_shift[1:] = int_ls[:-1]
             int_idx = np.floor((int_ls + int_ls_shift)/2)[1:]
+#                 int_idx = (int_idx[:,0].astype('int'), int_idx[:,1].astype('int'), int_idx[:,2].astype('int'))
             int_idx_flat = int_idx[:,0] * (sample_height_n.item() * sample_size_n.item()) + int_idx[:,1] * sample_size_n.item() + int_idx[:,2]
 
             if len(int_idx_flat) > longest_int_length:
                 longest_int_length = len(int_idx_flat)
                 
             P[i, 0, (j_offset+j) * dia_len_n: (j_offset+j) * dia_len_n + len(int_idx_flat)] = j_offset+j
-            P[i, 1, (j_offset+j) * dia_len_n: (j_offset+j) * dia_len_n + len(int_idx_flat)] = tc.tensor(int_idx_flat)
-            P[i, 2, (j_offset+j) * dia_len_n: (j_offset+j) * dia_len_n + len(int_idx_flat)] = tc.tensor(int_length * voxel_size_cm.item())            
+            P[i, 1, (j_offset+j) * dia_len_n: (j_offset+j) * dia_len_n + len(int_idx_flat)] = np.array(int_idx_flat)
+            P[i, 2, (j_offset+j) * dia_len_n: (j_offset+j) * dia_len_n + len(int_idx_flat)] = np.array(int_length * voxel_size_cm.item())            
 
     
     f_short = h5py.File(P_save_path +'_short.h5', 'w', driver='mpio', comm=comm)
@@ -644,7 +722,8 @@ def intersecting_length_fl_detectorlet_3d_mpi_write_h5(n_ranks, det_size_cm, det
         
     f.close()
     f_short.close()
-    return None
+    return longest_int_length, n_det, P
+
 
 
 def intersecting_length_fl_detectorlet_3d(det_size_cm, det_from_sample_cm, det_ds_spacing_cm, sample_size_n, sample_size_cm, sample_height_n, P_folder, f_P):
@@ -726,7 +805,7 @@ def intersecting_length_fl_detectorlet_3d(det_size_cm, det_from_sample_cm, det_d
     else:
         if not os.path.exists(P_folder):
             os.makedirs(P_folder)
-            
+
         ### Calculating voxel size in cm
         voxel_size_cm = sample_size_cm/sample_size_n
 
@@ -908,7 +987,10 @@ def self_absorption_att_ratio_single_theta_3d(src_path, n_det, P, det_size_cm, d
 
 
 def create_XRF_data_single_theta_3d(n_det, P, theta_st, theta_end, n_theta, src_path, det_size_cm, det_from_sample_cm, det_ds_spacing_cm, sample_size_n,
-                             sample_size_cm, sample_height_n, this_aN_dic, probe_cts, probe_energy, save_path, save_fname, dev, this_theta_idx):
+                             sample_size_cm, sample_height_n, this_aN_dic, probe_cts, probe_energy, save_path, save_fname, Poisson_noise, dev, this_theta_idx):
+    
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)    
     # (n_theta, sample_size_n * sample_size_n)
     theta_ls = - tc.linspace(theta_st, theta_end, n_theta + 1)[:-1]
     theta = theta_ls[this_theta_idx]
@@ -943,18 +1025,21 @@ def create_XRF_data_single_theta_3d(n_det, P, theta_st, theta_end, n_theta, src_
     return fl_signal_SA    
 
 
-def create_XRF_data_3d(P_save_path, theta_st, theta_end, n_theta, src_path, det_size_cm, det_from_sample_cm, det_ds_spacing_cm, sample_size_n,
-                             sample_size_cm, sample_height_n, this_aN_dic, probe_cts, probe_energy, save_path, save_fname, dev):
+def create_XRF_data_3d(n_ranks, rank, P_folder, f_P, theta_st, theta_end, n_theta, src_path, det_size_cm, det_from_sample_cm, det_ds_spacing_cm, sample_size_n,
+                             sample_size_cm, sample_height_n, this_aN_dic, probe_cts, probe_energy, save_path, save_fname, Poisson_noise, dev):
     
-    longest_int_length, n_det, P = intersecting_length_fl_detectorlet_3d(det_size_cm, det_from_sample_cm, det_ds_spacing_cm, sample_size_n.cpu(), sample_size_cm.cpu(), sample_height_n.cpu(), P_save_path)
-    P = tc.from_numpy(P).to(tc.float)
-    theta_ls = - tc.linspace(theta_st, theta_end, n_theta + 1)[:-1]
+    P_save_path = os.path.join(P_folder, f_P)
+    if not os.path.isfile(P_save_path + ".h5"):   
+        intersecting_length_fl_detectorlet_3d_mpi_write_h5(n_ranks, rank, det_size_cm, det_from_sample_cm, det_ds_spacing_cm,
+                                                  sample_size_n.cpu().numpy(), sample_size_cm.cpu().numpy(),
+                                                  sample_height_n.cpu().numpy(), P_folder, f_P) #cpu
     
-    for this_theta_idx, theta in enumerate(tqdm(theta_ls)):
-        create_XRF_data_single_theta_3d(n_det, P, theta_st, theta_end, n_theta, src_path, det_size_cm, det_from_sample_cm, det_ds_spacing_cm, sample_size_n,
-                             sample_size_cm, sample_height_n, this_aN_dic, probe_cts, probe_energy, save_path, save_fname, dev, this_theta_idx)
-    
-    
-    
-    
-    
+    if rank == 0:
+        P_handle = h5py.File(P_save_path + ".h5", 'r')
+        P = tc.from_numpy(P_handle['P_array'][...])
+        n_det = P.shape[0] 
+        theta_ls = - tc.linspace(theta_st, theta_end, n_theta + 1)[:-1] 
+        for this_theta_idx, theta in enumerate(tqdm(theta_ls)):
+            create_XRF_data_single_theta_3d(n_det, P, theta_st, theta_end, n_theta, src_path, det_size_cm, det_from_sample_cm, det_ds_spacing_cm, sample_size_n,
+                                 sample_size_cm, sample_height_n, this_aN_dic, probe_cts, probe_energy, save_path, save_fname, Poisson_noise, dev, this_theta_idx)
+        P_handle.close()

@@ -9,19 +9,24 @@ n_rank = comm.Get_size()
 rank = comm.Get_rank()
 
 
-comm.Barrier()
-seed = int(time.time() / 60)
-seed = comm.bcast(seed, root=0)
-comm.Barrier()
-np.random.seed(seed)
+                
+if rank == 0:  
+    X_cpu = tc.ones(5)
 
-rand_idx = tc.randperm(10)
+else:
+    X_cpu = None
+    
+comm.Barrier()
+X = comm.bcast(X_cpu, root=0)
+comm.Barrier()
  
 
 # print("Process ", rank, " before theta_ls = ", rand_idx)
 # sys.stdout.flush()
 # X = comm.gather(X, root=0)   
-print("Process ", rank, " after rand_idx = ", rand_idx)
+# print("Process ", rank, " after X = ", X)
+print("Process ", rank, " before X_cpu = ", X_cpu)
+print("Process ", rank, " after X_cpu = ", X_cpu)
 sys.stdout.flush()
 
 

@@ -4,7 +4,7 @@ tc.set_default_tensor_type(tc.FloatTensor)
 import xraylib as xlib
 import xraylib_np as xlib_np
 import torch.nn as nn
-from data_generation_fns_mpi_updating_h5Parray import rotate, MakeFLlinesDictionary, intersecting_length_fl_detectorlet_3d
+from data_generation_fns_mpi_updating_h5Parray import rotate, MakeFLlinesDictionary
 
 
 fl_K = np.array([xlib.KA1_LINE, xlib.KA2_LINE, xlib.KA3_LINE, xlib.KB1_LINE, xlib.KB2_LINE,
