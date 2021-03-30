@@ -572,7 +572,7 @@ def intersecting_length_fl_detectorlet_3d(det_size_cm, det_from_sample_cm, det_d
 
         ### y, z index of the location of the XRF detector
         ## Define the center of the detector on yz-plane
-        det_center_yz = (int(sample_size_n)/2., int(sample_size_n)/2.)
+        det_center_yz = (int(sample_size_n)/2., int(sample_height_n)/2.)
 
         ## Define the y and z loc(namely the loc along axis 2 and axis 0) of the detectorlets. The y and z loc are confined to be within a circle on the yz plane
         end_det_axis_2_idx_ls = np.array([int((sample_size_n - det_ds_spacing_n * np.floor(det_size_n/det_ds_spacing_n))/2.),

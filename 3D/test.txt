@@ -1,0 +1,5 @@
+element_line:
+[['Al' 'K']
+ ['Si' 'K']
+ ['Cr' 'K']
+ ['Cu' 'K']]
