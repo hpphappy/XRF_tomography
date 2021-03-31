@@ -1,5 +1,5 @@
 from mpi4py import MPI
-from data_generation_fns_mpi_updating_realData import intersecting_length_fl_detectorlet_3d_mpi_write_h5
+from data_generation_fns_mpi_updating_realData import intersecting_length_fl_detectorlet_3d_mpi_write_h5_2
 
 
 comm = MPI.COMM_WORLD
@@ -8,6 +8,7 @@ rank = comm.Get_rank()
 
     
 params = {"n_ranks": n_ranks,
+          "minibatch_size": 88,
           "rank": rank,
           "det_size_cm": 2.4,
           "det_from_sample_cm": 3.0,

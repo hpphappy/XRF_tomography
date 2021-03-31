@@ -20,7 +20,7 @@ tc.set_default_tensor_type(tc.FloatTensor)
 import torch.nn as nn
 from tqdm import tqdm
 import time
-from data_generation_fns_mpi_updating_realData import rotate, MakeFLlinesDictionary_manual, intersecting_length_fl_detectorlet_3d_mpi_write_h5, find_lines_roi_idx_from_dataset
+from data_generation_fns_mpi_updating_realData import rotate, MakeFLlinesDictionary_manual, intersecting_length_fl_detectorlet_3d_mpi_write_h5_2, find_lines_roi_idx_from_dataset
 from array_ops_mpi_updating_realData import initialize_guess_3d
 from forward_model_mpi_updating_realData import PPM
 from misc_mpi_updating_realData import print_flush_root, print_flush_all
@@ -134,7 +134,7 @@ def reconstruct_jXRFT_tomography(recon_idx, f_recon_parameters, dev, selfAb, con
     
     #Check if the P array exists, if it doesn't exist, call the function to calculate the P array and store it as a .h5 file.
     if not os.path.isfile(P_save_path + ".h5"):   
-        intersecting_length_fl_detectorlet_3d_mpi_write_h5(n_ranks, rank, det_size_cm, det_from_sample_cm, det_ds_spacing_cm,
+        intersecting_length_fl_detectorlet_3d_mpi_write_h5_2(n_ranks, minibatch_size, rank, det_size_cm, det_from_sample_cm, det_ds_spacing_cm,
                                                   sample_size_n, sample_size_cm,
                                                   sample_height_n, P_folder, f_P) #cpu
     
