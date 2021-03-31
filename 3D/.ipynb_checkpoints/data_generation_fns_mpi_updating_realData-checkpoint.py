@@ -733,9 +733,6 @@ def intersecting_length_fl_detectorlet_3d_mpi_write_h5_2(n_ranks, minibatch_size
             P_params.write("sample_size_cm = %f\n" %sample_size_cm)
             P_params.write("sample_height_n = %f\n" %sample_height_n)
             
-    layers_divisible_by_n_ranks = sample_height_n % n_ranks
-    if layers_divisible_by_n_ranks != 0:
-        print("Please set n_ranks such that sample_height_n is divisible by n_ranks")
          
     P_save_path = os.path.join(P_folder, f_P)
 
@@ -806,7 +803,6 @@ def intersecting_length_fl_detectorlet_3d_mpi_write_h5_2(n_ranks, minibatch_size
     f = h5py.File(P_save_path +'.h5', 'w', driver='mpio', comm=comm)
     P = f.create_dataset('P_array', (n_det, 3, dia_len_n * sample_height_n * sample_size_n**2), dtype='f4', data=np.zeros((n_det, 3, dia_len_n * sample_height_n * sample_size_n**2)))
     
-    
     stdout_options = {'root':0, 'output_folder': './', 'save_stdout': False, 'print_terminal': True}
     for i,  det_pos in enumerate(det_pos_ls_flat):
         timestr = str(datetime.datetime.today())     
@@ -817,7 +813,7 @@ def intersecting_length_fl_detectorlet_3d_mpi_write_h5_2(n_ranks, minibatch_size
             p = minibatch_ls[rank]
             j_offset = p * minibatch_size * sample_size_n
             
-            voxel_pos_ls_flat_minibatch = voxel_pos_ls_flat[p * minibatch_size * sample_size_n, (p+1) * minibatch_size * sample_size_n]
+            voxel_pos_ls_flat_minibatch = voxel_pos_ls_flat[p * minibatch_size * sample_size_n: (p+1) * minibatch_size * sample_size_n]
             
             for j, v in enumerate(voxel_pos_ls_flat_minibatch): 
 
