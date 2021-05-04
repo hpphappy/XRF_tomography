@@ -4,3 +4,7 @@
 *.tiff
 *.h5
 *_short.h5
+xtal1_scalers
+xtal1_xrf-fits
+xtal1_xrf-roi
+xtal1_xrf-roi-plus

@@ -1,0 +1,240 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Nov 20 15:58:57 2020
+
+@author: panpanhuang
+"""
+import os
+from FL_signal_reconstruction_fn import generate_reconstructed_FL_signal
+import numpy as np
+from mpi4py import MPI
+import xraylib as xlib
+import xraylib_np as xlib_np
+
+comm = MPI.COMM_WORLD
+n_ranks = comm.Get_size()
+rank = comm.Get_rank()
+
+
+fl = {"K": np.array([xlib.KA1_LINE, xlib.KA2_LINE, xlib.KA3_LINE, xlib.KB1_LINE, xlib.KB2_LINE,
+                 xlib.KB3_LINE, xlib.KB4_LINE, xlib.KB5_LINE]),
+      "L": np.array([xlib.LA1_LINE, xlib.LA2_LINE, xlib.LB1_LINE, xlib.LB2_LINE, xlib.LB3_LINE,
+                 xlib.LB4_LINE, xlib.LB5_LINE, xlib.LB6_LINE, xlib.LB7_LINE, xlib.LB9_LINE,
+                 xlib.LB10_LINE, xlib.LB15_LINE, xlib.LB17_LINE]),              
+      "M": np.array([xlib.MA1_LINE, xlib.MA2_LINE, xlib.MB_LINE])               
+     }
+
+params_3d_44_44_20_xtal1_roi_plus = {'dev': "cpu",
+                                     'selfAb': True,
+                                     'recon_path':"./data/Xtal1_align1_adjusted3_ds4_recon/Ab_T_nEl_4_nDpts_4_b1_100_b2_25000_lr_1.0E-3_ini_3_full_solid_angle",
+                                     'f_recon_grid': "grid_concentration",
+                                     'f_reconstructed_XRF_signal':"reprojected_XRF_data",
+                                     'f_reconstructed_XRT_signal':"reprojected_XRT_data",
+                                     'data_path': './data/Xtal1_align1_adjusted3_ds4',
+                                     'f_XRT_data': 'xtal1_scalers',
+                                     'photon_counts_us_ic_dataset_idx': 1,
+                                     'abs_ic_dataset_idx': 3,
+                                     'this_aN_dic': {"Al": 13, "Si": 14, "Fe": 26, "Cu": 29}, 
+                                     'element_lines_roi': np.array([['Al', 'K'], ['Si', 'K'], ['Fe', 'K'], ['Cu', 'K']]),
+                                     'n_line_group_each_element': np.array([1, 1, 1, 1]),
+                                     'sample_size_n': 44, 
+                                     'sample_height_n': 20,
+                                     'sample_size_cm': 0.007,                                    
+                                     'probe_energy': np.array([10.0]),                                       
+                                     'minibatch_size': 44,                                     
+                                     'det_size_cm': 2.4, # The estimated diameter of the sensor
+                                     'det_from_sample_cm': 2.0, # The estimated spacing between the sample and the detector
+                                     'manual_det_coord': True,
+                                     'set_det_coord_cm': np.array([[0.70, -2.0, 0.70], [0.70, -2.0, -0.70], [-0.70, -2.0, 0.70], [-0.70, -2.0, -0.70]]),
+                                     'det_on_which_side': "negative",                                 
+                                     'manual_det_area': True,
+                                     'set_det_area_cm2': 1.68,
+                                     'det_ds_spacing_cm': 2.4/2.0, # Set this value to the value of det_size_cm divided by a number
+                                     'solid_angle_adjustment_factor': 1.0,
+                                     'P_folder': 'data/P_array/sample_44_44_20_n/Dis_2.0_detSize_2.4_manual_dpts_4',              
+                                     'f_P': 'Intersecting_Length_44_44_20',  # The output file name has det_size_cm and det_ds_spacing_cm and det_from_sample_cm 
+                                     'fl_K': fl["K"], # doesn't need to change 
+                                     'fl_L': fl["L"], # doesn't need to change                    
+                                     'fl_M': fl["M"]  # doesn't need to change
+                                    }
+
+params_3d_44_44_20_Al_xtal1_roi_plus = {'dev': "cpu",
+                                     'selfAb': False,
+                                     'recon_path': "./data/Xtal1_align1_adjusted3_ds4_recon/Ab_F_nEl_1_nDpts_4_b_0.0_lr_1.0E-3_full_solid_angle/Al",
+                                     'f_recon_grid': "grid_concentration",
+                                     'f_reconstructed_XRF_signal':"reprojected_XRF_data",
+                                     'f_reconstructed_XRT_signal':"reprojected_XRT_data",
+                                     'data_path': './data/Xtal1_align1_adjusted3_ds4',
+                                     'f_XRT_data': 'xtal1_scalers',
+                                     'photon_counts_us_ic_dataset_idx': 1,
+                                     'abs_ic_dataset_idx': 3,
+                                     'this_aN_dic': {"Al": 13}, 
+                                     'element_lines_roi': np.array([['Al', 'K']]),
+                                     'n_line_group_each_element': np.array([1]),
+                                     'sample_size_n': 44, 
+                                     'sample_height_n': 20,
+                                     'sample_size_cm': 0.007,                                    
+                                     'probe_energy': np.array([10.0]),                                       
+                                     'minibatch_size': 44,                                     
+                                     'det_size_cm': 2.4, # The estimated diameter of the sensor
+                                     'det_from_sample_cm': 2.0, # The estimated spacing between the sample and the detector
+                                     'manual_det_coord': True,
+                                     'set_det_coord_cm': np.array([[0.70, -2.0, 0.70], [0.70, -2.0, -0.70], [-0.70, -2.0, 0.70], [-0.70, -2.0, -0.70]]),
+                                     'det_on_which_side': "negative",                                 
+                                     'manual_det_area': True,
+                                     'set_det_area_cm2': 1.68,
+                                     'det_ds_spacing_cm': 2.4/2.0, # Set this value to the value of det_size_cm divided by a number
+                                     'solid_angle_adjustment_factor': 1.0,
+                                     'P_folder': 'data/P_array/sample_44_44_20_n/Dis_2.0_detSize_2.4_manual_dpts_4',              
+                                     'f_P': 'Intersecting_Length_44_44_20',  # The output file name has det_size_cm and det_ds_spacing_cm and det_from_sample_cm 
+                                     'fl_K': fl["K"], # doesn't need to change 
+                                     'fl_L': fl["L"], # doesn't need to change                    
+                                     'fl_M': fl["M"]  # doesn't need to change
+                                    }
+
+params_3d_44_44_20_Si_xtal1_roi_plus = {'dev': "cpu",
+                                     'selfAb': False,
+                                     'recon_path': "./data/Xtal1_align1_adjusted3_ds4_recon/Ab_F_nEl_1_nDpts_4_b_0.0_lr_1.0E-3_full_solid_angle/Si_2",
+                                     'f_recon_grid': "grid_concentration",
+                                     'f_reconstructed_XRF_signal':"reprojected_XRF_data",
+                                     'f_reconstructed_XRT_signal':"reprojected_XRT_data",
+                                     'data_path': './data/Xtal1_align1_adjusted3_ds4',
+                                     'f_XRT_data': 'xtal1_scalers',
+                                     'photon_counts_us_ic_dataset_idx': 1,
+                                     'abs_ic_dataset_idx': 3,
+                                     'this_aN_dic': {"Si": 14}, 
+                                     'element_lines_roi': np.array([['Si', 'K']]),
+                                     'n_line_group_each_element': np.array([1]),
+                                     'sample_size_n': 44, 
+                                     'sample_height_n': 20,
+                                     'sample_size_cm': 0.007,                                    
+                                     'probe_energy': np.array([10.0]),                                       
+                                     'minibatch_size': 44,                                     
+                                     'det_size_cm': 2.4, # The estimated diameter of the sensor
+                                     'det_from_sample_cm': 2.0, # The estimated spacing between the sample and the detector
+                                     'manual_det_coord': True,
+                                     'set_det_coord_cm': np.array([[0.70, -2.0, 0.70], [0.70, -2.0, -0.70], [-0.70, -2.0, 0.70], [-0.70, -2.0, -0.70]]),
+                                     'det_on_which_side': "negative",                                 
+                                     'manual_det_area': True,
+                                     'set_det_area_cm2': 1.68,
+                                     'det_ds_spacing_cm': 2.4/2.0, # Set this value to the value of det_size_cm divided by a number
+                                     'solid_angle_adjustment_factor': 1.0,
+                                     'P_folder': 'data/P_array/sample_44_44_20_n/Dis_2.0_detSize_2.4_manual_dpts_4',              
+                                     'f_P': 'Intersecting_Length_44_44_20',  # The output file name has det_size_cm and det_ds_spacing_cm and det_from_sample_cm 
+                                     'fl_K': fl["K"], # doesn't need to change 
+                                     'fl_L': fl["L"], # doesn't need to change                    
+                                     'fl_M': fl["M"]  # doesn't need to change
+                                    }
+
+params_3d_44_44_20_Fe_xtal1_roi_plus = {'dev': "cpu",
+                                     'selfAb': False,
+                                     'recon_path': "./data/Xtal1_align1_adjusted3_ds4_recon/Ab_F_nEl_1_nDpts_4_b_0.0_lr_1.0E-3_full_solid_angle/Fe",
+                                     'f_recon_grid': "grid_concentration",
+                                     'f_reconstructed_XRF_signal':"reprojected_XRF_data",
+                                     'f_reconstructed_XRT_signal':"reprojected_XRT_data",
+                                     'data_path': './data/Xtal1_align1_adjusted3_ds4',
+                                     'f_XRT_data': 'xtal1_scalers',
+                                     'photon_counts_us_ic_dataset_idx': 1,
+                                     'abs_ic_dataset_idx': 3,
+                                     'this_aN_dic': {"Fe": 26}, 
+                                     'element_lines_roi': np.array([['Fe', 'K']]),
+                                     'n_line_group_each_element': np.array([1]),
+                                     'sample_size_n': 44, 
+                                     'sample_height_n': 20,
+                                     'sample_size_cm': 0.007,                                    
+                                     'probe_energy': np.array([10.0]),                                       
+                                     'minibatch_size': 44,                                     
+                                     'det_size_cm': 2.4, # The estimated diameter of the sensor
+                                     'det_from_sample_cm': 2.0, # The estimated spacing between the sample and the detector
+                                     'manual_det_coord': True,
+                                     'set_det_coord_cm': np.array([[0.70, -2.0, 0.70], [0.70, -2.0, -0.70], [-0.70, -2.0, 0.70], [-0.70, -2.0, -0.70]]),
+                                     'det_on_which_side': "negative",                                 
+                                     'manual_det_area': True,
+                                     'set_det_area_cm2': 1.68,
+                                     'det_ds_spacing_cm': 2.4/2.0, # Set this value to the value of det_size_cm divided by a number
+                                     'solid_angle_adjustment_factor': 1.0,
+                                     'P_folder': 'data/P_array/sample_44_44_20_n/Dis_2.0_detSize_2.4_manual_dpts_4',              
+                                     'f_P': 'Intersecting_Length_44_44_20',  # The output file name has det_size_cm and det_ds_spacing_cm and det_from_sample_cm 
+                                     'fl_K': fl["K"], # doesn't need to change 
+                                     'fl_L': fl["L"], # doesn't need to change                    
+                                     'fl_M': fl["M"]  # doesn't need to change
+                                    }
+
+params_3d_44_44_20_Cu_xtal1_roi_plus = {'dev': "cpu",
+                                     'selfAb': False,
+                                     'recon_path':"./data/Xtal1_align1_adjusted3_ds4_recon/Ab_F_nEl_1_nDpts_4_b_0.0_lr_1.0E-3_full_solid_angle/Cu",
+                                     'f_recon_grid': "grid_concentration",
+                                     'f_reconstructed_XRF_signal':"reprojected_XRF_data",
+                                     'f_reconstructed_XRT_signal':"reprojected_XRT_data",
+                                     'data_path': './data/Xtal1_align1_adjusted3_ds4',
+                                     'f_XRT_data': 'xtal1_scalers',
+                                     'photon_counts_us_ic_dataset_idx': 1,
+                                     'abs_ic_dataset_idx': 3,
+                                     'this_aN_dic': {"Cu": 29}, 
+                                     'element_lines_roi': np.array([['Cu', 'K']]),
+                                     'n_line_group_each_element': np.array([1]),
+                                     'sample_size_n': 44, 
+                                     'sample_height_n': 20,
+                                     'sample_size_cm': 0.007,                                    
+                                     'probe_energy': np.array([10.0]),                                       
+                                     'minibatch_size': 44,                                     
+                                     'det_size_cm': 2.4, # The estimated diameter of the sensor
+                                     'det_from_sample_cm': 2.0, # The estimated spacing between the sample and the detector
+                                     'manual_det_coord': True,
+                                     'set_det_coord_cm': np.array([[0.70, -2.0, 0.70], [0.70, -2.0, -0.70], [-0.70, -2.0, 0.70], [-0.70, -2.0, -0.70]]),
+                                     'det_on_which_side': "negative",                                 
+                                     'manual_det_area': True,
+                                     'set_det_area_cm2': 1.68,
+                                     'det_ds_spacing_cm': 2.4/2.0, # Set this value to the value of det_size_cm divided by a number
+                                     'solid_angle_adjustment_factor': 1.0,
+                                     'P_folder': 'data/P_array/sample_44_44_20_n/Dis_2.0_detSize_2.4_manual_dpts_4',              
+                                     'f_P': 'Intersecting_Length_44_44_20',  # The output file name has det_size_cm and det_ds_spacing_cm and det_from_sample_cm 
+                                     'fl_K': fl["K"], # doesn't need to change 
+                                     'fl_L': fl["L"], # doesn't need to change                    
+                                     'fl_M': fl["M"]  # doesn't need to change
+                                    }
+
+params_3d_test_sample8_64_64_64 = {'dev': "cpu",
+                                     'selfAb': True,
+                                     'recon_path':"./data/sample_8_size_64_test_recon",
+                                     'f_recon_grid': "grid_concentration",
+                                     'f_reconstructed_XRF_signal':"reprojected_XRF_data",
+                                     'f_reconstructed_XRT_signal':"reprojected_XRT_data",
+                                     'data_path': './data/sample_8_size_64_test',
+                                     'f_XRT_data': 'test8_xrt',
+                                     'photon_counts_us_ic_dataset_idx': 1,
+                                     'abs_ic_dataset_idx': 3,
+                                     'this_aN_dic': {"Ca": 20, "Sc": 21}, 
+                                     'element_lines_roi': np.array([['Ca', 'K'], ['Ca', 'L'], ['Sc', 'K'], ['Sc', 'L']]),
+                                     'n_line_group_each_element': np.array([2, 2]),
+                                     'sample_size_n': 64, 
+                                     'sample_height_n': 64,
+                                     'sample_size_cm': 0.01,                                    
+                                     'probe_energy': np.array([20.0]),                                       
+                                     'minibatch_size': 64,                                     
+                                     'det_size_cm': 0.9, # The estimated diameter of the sensor
+                                     'det_from_sample_cm': 1.6, # The estimated spacing between the sample and the detector
+                                     'manual_det_coord': False,
+                                     'set_det_coord_cm': np.array([[0.70, -2.0, 0.70], [0.70, -2.0, -0.70], [-0.70, -2.0, 0.70], [-0.70, -2.0, -0.70]]),
+                                     'det_on_which_side': "positive",                                 
+                                     'manual_det_area': False,
+                                     'set_det_area_cm2': 1.68,
+                                     'det_ds_spacing_cm': 0.4, # Set this value to the value of det_size_cm divided by a number
+                                     'solid_angle_adjustment_factor': 1.0,
+                                     'P_folder': './data/P_array/sample_64_64_64/detSpacing_0.4_dpts_5',              
+                                     'f_P': 'Intersecting_Length_64_64_64',  # The output file name has det_size_cm and det_ds_spacing_cm and det_from_sample_cm 
+                                     'fl_K': fl["K"], # doesn't need to change 
+                                     'fl_L': fl["L"], # doesn't need to change                    
+                                     'fl_M': fl["M"]  # doesn't need to change
+                                    }
+
+params = params_3d_44_44_20_xtal1_roi_plus
+
+if __name__ == "__main__": 
+    
+    generate_reconstructed_FL_signal(**params)
+
+    save_path = params["recon_path"]
+    with open(os.path.join(save_path, 'reprojection_parameters.txt'), "w") as recon_params:
+        print(str(params).replace(",", ",\n"), file=recon_params, sep=',')

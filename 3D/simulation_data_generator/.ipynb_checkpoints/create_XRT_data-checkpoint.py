@@ -163,7 +163,7 @@ params_3d_16_16_16_nElements_2 = {'src_path': os.path.join('./data/sample4_size_
                    'dev': dev
                   }
 
-params_3d_32_32_32_nElements_2 = {'src_path': os.path.join('./data/sample5_size_32_pad/nElements_2', 'grid_concentration.npy'),
+params_3d_32_32_32_nElements_2 = {'src_path': os.path.join('./data/Xtal1_fake_size_32_pad', 'grid_concentration.npy'),
                    'theta_st': tc.tensor(0).to(dev), 
                    'theta_end': tc.tensor(2 * np.pi).to(dev),
                    'n_theta': tc.tensor(100).to(dev), 
@@ -173,8 +173,8 @@ params_3d_32_32_32_nElements_2 = {'src_path': os.path.join('./data/sample5_size_
                    'this_aN_dic': {"Ca": 20, "Sc": 21},
                    'probe_energy': np.array([20.0]),
                    'probe_cts': tc.tensor(1.0E7).to(dev), 
-                   'save_path': './data/sample5_size_32_data/nElements_2',
-                   'save_fname': 'XRT_sample5',
+                   'save_path': './data/Xtal1_fake_size_32_data/nElements_2',
+                   'save_fname': 'XRT_Xtal1_fake',
                    'theta_sep': True,
                    'dev': dev
                   }

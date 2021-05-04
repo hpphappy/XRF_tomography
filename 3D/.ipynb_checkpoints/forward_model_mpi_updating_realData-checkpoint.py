@@ -15,7 +15,7 @@ class PPM(nn.Module):
                  FL_line_attCS_ls, detected_fl_unit_concentration, n_line_group_each_element,
                  sample_height_n, minibatch_size, sample_size_n, sample_size_cm,          
                  probe_energy, probe_cts_minibatch, probe_attCS_ls,
-                 theta,
+                 theta, solid_angle_adjustment_factor,
                  n_det, P_minibatch, det_size_cm, det_from_sample_cm, fl_sig_collecting_ratio):
         """
         Initialize the attributes of PPM. 
@@ -37,7 +37,7 @@ class PPM(nn.Module):
         self.minibatch_size = minibatch_size
         self.sample_size_n = sample_size_n
         self.sample_size_cm = sample_size_cm
-        self.dia_len_n = int((self.sample_height_n**2 + self.sample_size_n**2 + self.sample_size_n**2)**0.5)
+        self.dia_len_n = int(1.2 * (self.sample_height_n**2 + self.sample_size_n**2 + self.sample_size_n**2)**0.5)
         self.n_voxel_minibatch = self.minibatch_size * self.sample_size_n
         self.n_voxel = self.sample_height_n * self.sample_size_n**2 
         
@@ -48,6 +48,7 @@ class PPM(nn.Module):
         self.probe_before_attenuation_flat = self.init_probe()        
               
         self.theta = theta
+        self.solid_angle_adjustment_factor = solid_angle_adjustment_factor
              
         self.n_det = n_det
         self.P_minibatch = P_minibatch 
@@ -68,11 +69,14 @@ class PPM(nn.Module):
     def init_SA_theta(self):
         if self.selfAb == True:
             voxel_idx_offset = self.p * self.n_voxel_minibatch        
+#             att_exponent = tc.stack([self.lac[:,:, tc.clamp((self.P_minibatch[m,0] - voxel_idx_offset), 0, self.n_voxel_minibatch).to(dtype=tc.long), self.P_minibatch[m,1].to(dtype=tc.long)]
+#                                      * self.P_minibatch[m,2].view(1, 1, -1).repeat(self.n_element, self.n_lines, 1) for m in range(self.n_det)])
+            
             att_exponent = tc.stack([self.lac[:,:, tc.clamp((self.P_minibatch[m,0] - voxel_idx_offset), 0, self.n_voxel_minibatch).to(dtype=tc.long), self.P_minibatch[m,1].to(dtype=tc.long)]
-                                     * self.P_minibatch[m,2].view(1, 1, -1).repeat(self.n_element, self.n_lines, 1) for m in range(self.n_det)])
+                                     * self.P_minibatch[m,2].repeat(self.n_element, self.n_lines, 1) for m in range(self.n_det)])
             
             # lac, dim = [n_element, n_lines, n_voxel_minibatch, n_voxel]
-            # att_exponent, dim = [n_det, n_lines, n_source, n_dia_length]
+            # att_exponent, dim = [n_det, n_element, n_lines, n_source, n_dia_length]
             
             ## summing over the attenation exponent contributed by all intersecting voxels, dim = (n_det, n_element, n_lines, n_voxel_minibatch(FL source))
             att_exponent_voxel_sum = tc.sum(att_exponent.view(self.n_det, self.n_element, self.n_lines, self.n_voxel_minibatch, self.dia_len_n), axis=-1)
@@ -114,8 +118,8 @@ class PPM(nn.Module):
         for j in range(self.n_element):
             ## for step 1
             lac_single = concentration_map_minibatch_rot[j] * self.probe_attCS_ls[j]
-            lac_acc = tc.cumsum(lac_single, axis=1)
-            lac_acc = tc.cat((tc.zeros((self.minibatch_size, 1), device=self.dev), lac_acc), dim = 1)
+            lac_acc = tc.cumsum(lac_single, axis=1) # dim = (minibatch_size, sample_size_n)
+            lac_acc = tc.cat((tc.zeros((self.minibatch_size, 1), device=self.dev), lac_acc), dim = 1) # dim = (minibatch_size, sample_size_n + 1)
             att_exponent_acc = lac_acc * (self.sample_size_cm / self.sample_size_n)    
             att_exponent_acc_map += att_exponent_acc
             
@@ -127,18 +131,21 @@ class PPM(nn.Module):
             line_idx = line_idx + len(fl_unit)
             
         attenuation_map_theta_flat = tc.exp(-(att_exponent_acc_map[:,:-1])).view(self.n_voxel_minibatch)
-        transmission_theta = tc.exp(-att_exponent_acc_map[:,-1])
+#         transmission_theta = tc.exp(-att_exponent_acc_map[:,-1])
+        transmission_att_exponent_theta = att_exponent_acc_map[:,-1]
              
         #### 4: Create XRF, XRT data ####           
         probe_after_attenuation_theta = self.probe_before_attenuation_flat * attenuation_map_theta_flat 
+        # fl_signal_SA_theta, dim = (n_lines, n_minibatch)
         fl_signal_SA_theta = tc.unsqueeze(probe_after_attenuation_theta, dim=0) * fl_map_tot_flat_theta * self.SA_theta  
-        fl_signal_SA_theta = fl_signal_SA_theta.view(-1, self.minibatch_size, self.sample_size_n)
+        fl_signal_SA_theta = fl_signal_SA_theta.view(self.n_lines, self.minibatch_size, self.sample_size_n)
         fl_signal_SA_theta = tc.sum(fl_signal_SA_theta, axis=-1)
         
-        fl_signal_SA_theta = fl_signal_SA_theta * self.fl_sig_collecting_ratio
-                       
+        fl_signal_SA_theta = fl_signal_SA_theta * self.fl_sig_collecting_ratio * self.solid_angle_adjustment_factor
+         
         output1 = fl_signal_SA_theta
-        output2 = self.probe_cts * transmission_theta
+#         output2 = self.probe_cts * transmission_theta
+        output2 = transmission_att_exponent_theta
 
         return output1, output2
     

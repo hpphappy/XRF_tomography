@@ -9,7 +9,7 @@ Created on Sat Nov  7 23:49:56 2020
 import os
 import numpy as np
 import torch as tc
-from data_generation_fns_updating import create_XRT_data_3d
+from data_generation_fns_mpi_updating_h5Parray import create_XRT_data_3d
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -196,8 +196,26 @@ params_3d_64_64_64_nElements_2_2 = {'src_path': os.path.join('./data/sample8_siz
                    'dev': dev
                   }
 
+
+params_3d_44_44_20_xtal1_roi_plus = {'src_path': os.path.join('../data/Xtal1_align1_adjusted1_ds4_recon/Ab_T_nEl_4_nDpts_5_b_1E-1_lr_1E-4', 'grid_concentration.npy'),
+                    'theta_st': tc.tensor(165 * np.pi/180).to(dev), 
+                    'theta_end': tc.tensor(-165 * np.pi/180).to(dev),
+                    'n_theta': tc.tensor(110).to(dev),
+                   'sample_height_n': tc.tensor(20).to(dev),
+                   'sample_size_n': tc.tensor(44).to(dev),
+                   'sample_size_cm': tc.tensor(0.007).to(dev),
+                   'this_aN_dic': {"Al": 13, "Si": 14, "Fe": 26, "Cu": 29},
+                   'probe_energy': np.array([10.0]),
+                   'probe_cts': tc.tensor(2.3E5).to(dev), 
+                   'save_path': '../data/Xtal1_align1_adjusted1_ds4_recon/Ab_T_nEl_4_nDpts_5_b_1E-1_lr_1E-4/reprojected',
+                   'save_fname': 'XRT_xtal1_ds4',
+                   'theta_sep': False,
+                   'Poisson_noise': False,             
+                   'dev': dev
+                  }
+
     
-params = params_3d_64_64_64_nElements_2_2
+params = params_3d_44_44_20_xtal1_roi_plus
 
 
 if __name__ == "__main__":  
