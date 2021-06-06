@@ -286,11 +286,15 @@ def MakeFLlinesDictionary(this_aN_dic, probe_energy,
     return FL_all_elements_dic
 
 
-def find_lines_roi_idx_from_dataset(data_path, f_XRF_data, element_lines_roi):
+def find_lines_roi_idx_from_dataset(data_path, f_XRF_data, element_lines_roi, std_sample):
     XRF_data = h5py.File(os.path.join(data_path, f_XRF_data), 'r')
-    channel_names = XRF_data['exchange/elements'][...]
+    
+    if std_sample:
+        channel_names = XRF_data['MAPS/channel_names'][...]
+    else:
+        channel_names = XRF_data['exchange/elements'][...]
+        
     channel_names = np.array([str(channel_name, 'utf-8') for channel_name in channel_names])
-
     element_lines_roi_idx = np.zeros(len(element_lines_roi)).astype(np.int)
     for i, element_line_roi in enumerate(element_lines_roi):
         if element_line_roi[1] == "K":
@@ -1096,22 +1100,25 @@ def intersecting_length_fl_detectorlet_3d_mpi_write_h5_3(n_ranks, minibatch_size
     
     return None
 
-def intersecting_length_fl_detectorlet_3d_mpi_write_h5_3_manual(n_ranks, minibatch_size, rank, manual_det_coord, set_det_coord_cm, det_on_which_side, det_size_cm, det_from_sample_cm, det_ds_spacing_cm, sample_size_n, sample_size_cm, sample_height_n, P_folder, f_P):
+def intersecting_length_fl_detectorlet_3d_mpi_write_h5_3_manual(n_ranks, minibatch_size, rank, manual_det_coord, set_det_coord_cm, det_on_which_side,
+                                                                manual_det_area, det_size_cm, det_from_sample_cm, det_ds_spacing_cm, sample_size_n, 
+                                                                sample_size_cm, sample_height_n, P_folder, f_P):
     
  
     if rank == 0:
         if not os.path.exists(P_folder):
             os.makedirs(P_folder)
-        with open(os.path.join(P_folder, 'P_array_parameters.txt'), "w") as P_params:
-                
-            P_params.write("det_size_cm = %f\n" %det_size_cm)
-            P_params.write("det_from_sample_cm = %f\n" %det_from_sample_cm)
+        with open(os.path.join(P_folder, 'P_array_parameters.txt'), "w") as P_params:             
+            
+            if not manual_det_area:
+                P_params.write("det_size_cm = %f\n" %det_size_cm)    
             
             if manual_det_coord:
-                P_params.write("det_coord_cm_cm = ")
+                P_params.write("det_coord_cm = ")
                 P_params.write(str(set_det_coord_cm))
                 P_params.write("\n")
             else:
+                P_params.write("det_from_sample_cm = %f\n" %det_from_sample_cm)
                 P_params.write("det_ds_spacing_cm = %f\n" %det_ds_spacing_cm) 
                 
             P_params.write("sample_size_n = %f\n" %sample_size_n)
@@ -1124,11 +1131,10 @@ def intersecting_length_fl_detectorlet_3d_mpi_write_h5_3_manual(n_ranks, minibat
     ### Calculating voxel size in cm
     voxel_size_cm = sample_size_cm/sample_size_n
 
-    ### Calculating the diameter of the XRF detector with 
-    det_size_n = int(np.ceil(det_size_cm/voxel_size_cm)) 
 
-    ### Set the desired spacing between detectorlets, and then convert the unit of spacing to the number of the sample voxels
-    det_ds_spacing_n = int(det_ds_spacing_cm/voxel_size_cm)
+    if not manual_det_area:
+        ### Calculating the diameter of the XRF detector in # of voxels
+        det_size_n = int(np.ceil(det_size_cm/voxel_size_cm)) 
 
     # Define position of center of the source voxel (z_s, x_s, y_s), note that it's shifted by 0.5 from the voxel idx to represent the loc of center
     z_s, x_s, y_s = np.indices((int(sample_height_n), int(sample_size_n), int(sample_size_n))) + 0.5
@@ -1152,6 +1158,9 @@ def intersecting_length_fl_detectorlet_3d_mpi_write_h5_3_manual(n_ranks, minibat
             sample_x_edge = np.array([0.])
     
     else:
+        
+        ### Set the desired spacing between detectorlets, and then convert the unit of spacing to the number of the sample voxels
+        det_ds_spacing_n = int(det_ds_spacing_cm/voxel_size_cm)
         
         if det_on_which_side == "positive":
             det_axis_1_idx = sample_size_n + np.ceil(det_from_sample_cm/voxel_size_cm) + 0.5

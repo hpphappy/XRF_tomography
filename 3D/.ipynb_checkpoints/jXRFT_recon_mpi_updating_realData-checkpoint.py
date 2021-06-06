@@ -20,7 +20,8 @@ warnings.filterwarnings("ignore")
 # Set the device
 #========================================================
 # stdout_options = {'output_folder': recon_path, 'save_stdout': False, 'print_terminal': True}
-gpu_index = rank % 2
+# gpu_index = rank % 2
+gpu_index = 1
 if tc.cuda.is_available():  
     dev = tc.device('cuda:{}'.format(gpu_index))
     print("Process ", rank, "running on", dev)
@@ -43,13 +44,13 @@ fl = {"K": np.array([xlib.KA1_LINE, xlib.KA2_LINE, xlib.KA3_LINE, xlib.KB1_LINE,
 params_3d_test_sample8_64_64_64 = {'recon_idx': 0,
                               'f_recon_parameters': 'recon_parameters.txt',  # The txt file that will save the reconstruction parameters
                               'dev': dev,
-                              'selfAb': False,
+                              'selfAb': True,
                               'cont_from_check_point': False,
                               'use_saved_initial_guess': False,
                               'ini_kind': 'const',  # choose from 'const', 'rand' or 'randn'
                               'init_const': 0.5,
                               'ini_rand_amp': 0.1,
-                              'recon_path': './data/sample_8_size_64_test_recon_woSelfAb',
+                              'recon_path': './data/sample_8_size_64_test_recon_b1_b2',
                               'f_initial_guess': 'initialized_grid_concentration',
                               'f_recon_grid': 'grid_concentration',
                               'data_path': './data/sample_8_size_64_test',    # the folder where the data file is in
@@ -70,12 +71,18 @@ params_3d_test_sample8_64_64_64 = {'recon_idx': 0,
                               'probe_energy': np.array([20.0]),                            
                               'n_epoch': 40,
                               'minibatch_size': 64,
-                              'b': 1.56E-5,  # the regulizer coefficient of the XRT loss
+                              'b1': 0.1,  # the regulizer coefficient of the XRT loss
+                              'b2': 20000,
                               'lr': 1.0E-3,                          
                               'det_size_cm': 0.9, # The estimated diameter of the sensor
                               'det_from_sample_cm': 1.6, # The estimated spacing between the sample and the detector
+                              'manual_det_coord': False,
+                              'set_det_coord_cm': None,
+                              'det_on_which_side': "positive", 
+                              'manual_det_area': False,
+                              'set_det_area_cm2': None, 
                               'det_ds_spacing_cm': 0.4, # Set this value to the value of det_size_cm divided by a number
-                              'P_folder': 'data/P_array/sample_64_64_64/detSpacing_0.4_dpts_5/backup4',              
+                              'P_folder': 'data/P_array/sample_64_64_64/detSpacing_0.4_dpts_5',              
                               'f_P': 'Intersecting_Length_64_64_64',  # The output file name has det_size_cm and det_ds_spacing_cm and det_from_sample_cm 
                               'fl_K': fl["K"], # doesn't need to change 
                               'fl_L': fl["L"], # doesn't need to change                    
@@ -83,19 +90,74 @@ params_3d_test_sample8_64_64_64 = {'recon_idx': 0,
                              }
 
 
-params_3d_44_44_20_xtal1_roi_plus = {'recon_idx': 0,  # if start from the checkpoint, set this number to the checkpoint index you want to reconstruct from
+params_3d_test_sample9_64_64_64 = {'recon_idx': 0,
                               'f_recon_parameters': 'recon_parameters.txt',  # The txt file that will save the reconstruction parameters
                               'dev': dev,
                               'selfAb': True,
                               'cont_from_check_point': False,
-                              'use_saved_initial_guess': True,
+                              'use_saved_initial_guess': False,
+                              'ini_kind': 'const',  # choose from 'const', 'rand' or 'randn'
+                              'init_const': 0.5,
+                              'ini_rand_amp': 0.1,
+                              'recon_path': './data/sample_9_size_64_recon/b_1.5E-5_lr_1.0E-3',
+                              'f_initial_guess': 'initialized_grid_concentration',
+                              'f_recon_grid': 'grid_concentration',
+                              'data_path': './data/sample_9_size_64_data/nElements_1',    # the folder where the data file is in
+                              'f_XRF_data': 'test9_xrf',    # the aligned channel data file output from XRFtomo                  
+                              'f_XRT_data': 'test9_xrt',         # the aligned scaler data file output from XRFtomo
+                              'photon_counts_us_ic_dataset_idx':1,
+                              'photon_counts_ds_ic_dataset_idx':2,
+                              'XRT_ratio_dataset_idx':3,                # the index in the scalers dataset that stores the ratio of the transmitted photon counts
+                              'theta_ls_dataset_idx': 'exchange/theta', # the dataset in the channel data file that stores the object angle
+                              'channel_names': 'exchange/elements',     # the dataset in the channel data file that stores the cahnnel names
+                              'this_aN_dic': {"Si": 14},
+                              'element_lines_roi': np.array([['Si', 'K'], ['Si', 'L']]),  # e.g. np.array([["Si", "K"], ["Ca", "K"]])
+                              'n_line_group_each_element': np.array([2]),
+                              'solid_angle_adjustment_factor': 1.0,  # because the detector is made up of 4 sensors with spacing in between(for 2-ID-E XRF), this factor is used to account for the loss of the total amount of photon counts
+                              'sample_size_n': 64, 
+                              'sample_height_n': 64,
+                              'sample_size_cm': 0.01,                                    
+                              'probe_energy': np.array([20.0]),                            
+                              'n_epoch': 40,
+                              'minibatch_size': 64,
+                              'b1': 1.5E-5,  # the regulizer coefficient of the XRT loss
+                              'b2': 1.0,
+                              'lr': 1.0E-3,                          
+                              'det_size_cm': 0.9, # The estimated diameter of the sensor
+                              'det_from_sample_cm': 1.6, # The estimated spacing between the sample and the detector
+                              'manual_det_coord': False,
+                              'set_det_coord_cm': None,
+                              'det_on_which_side': "positive", 
+                              'manual_det_area': False,
+                              'set_det_area_cm2': None, 
+                              'det_ds_spacing_cm': 0.4, # Set this value to the value of det_size_cm divided by a number
+                              'P_folder': './data/P_array/sample_64_64_64/detSpacing_0.4_dpts_5',              
+                              'f_P': 'Intersecting_Length_64_64_64',  # The output file name has det_size_cm and det_ds_spacing_cm and det_from_sample_cm 
+                              'fl_K': fl["K"], # doesn't need to change 
+                              'fl_L': fl["L"], # doesn't need to change                    
+                              'fl_M': fl["M"]  # doesn't need to change
+                             }
+
+params_3d_44_44_20_xtal1 = {'recon_idx': 0,  # if start from the checkpoint, set this number to the checkpoint index you want to reconstruct from
+                              'f_recon_parameters': 'recon_parameters.txt',  # The txt file that will save the reconstruction parameters
+                              'dev': dev,
+                              'use_std_calibation': True,
+                              'probe_intensity': None,
+                              'std_path': './data/Xtal1/axo_std',
+                              'f_std': 'axo_std.h5',
+                              'std_element_lines_roi': np.array([['Ca', 'K'], ['Fe', 'K'], ['Cu', 'K']]),
+                              'density_std_elements': np.array([1.931, 0.504, 0.284])*1.0E-6,  # unit in g/cm^2
+                              'fitting_method':'XRF_roi_plus', # set to 'XRF_fits' , 'XRF_roi' or 'XRF_roi_plus'
+                              'selfAb': True,
+                              'cont_from_check_point': False,
+                              'use_saved_initial_guess': False,
                               'ini_kind': 'const',  # choose from 'const', 'rand' or 'randn'
                               'init_const': 0.0,
                               'ini_rand_amp': 0.1,
-                              'recon_path': './data/Xtal1_align1_adjusted3_ds4_recon/Ab_T_nEl_4_nDpts_4_b1_0.0_b2_25000_lr_1.0E-3_ini_3_full_solid_angle',
+                              'recon_path': './data/Xtal1_align1_adjusted1_ds4_recon_test/Ab_T_nEl_4_Dis_2.0_nDpts_4_b1_1.0_b2_25000_lr_1.0E-5',
                               'f_initial_guess': 'initialized_grid_concentration',
                               'f_recon_grid': 'grid_concentration',
-                              'data_path': './data/Xtal1_align1_adjusted3_ds4',    # the folder where the data file is in
+                              'data_path': './data/Xtal1_align1_adjusted1_ds4',    # the folder where the data file is in
                               'f_XRF_data': 'xtal1_xrf-roi-plus',    # the aligned channel data file output from XRFtomo                  
                               'f_XRT_data': 'xtal1_scalers',         # the aligned scaler data file output from XRFtomo
                               'photon_counts_us_ic_dataset_idx':1,
@@ -111,20 +173,21 @@ params_3d_44_44_20_xtal1_roi_plus = {'recon_idx': 0,  # if start from the checkp
                               'sample_height_n': 20,
                               'sample_size_cm': 0.007,                                    
                               'probe_energy': np.array([10.0]),                             
-                              'n_epoch': 80,
+                              'n_epoch': 10,
+                              'save_every_n_epochs': 10,
                               'minibatch_size': 44,
-                              'b1': 0.0,  # the regulizer coefficient of the XRT loss
+                              'b1': 1.0,  # the regulizer coefficient of the XRT loss
                               'b2': 25000.0,
-                              'lr': 1.0E-3,                          
-                              'det_size_cm': 2.4, # The estimated diameter of the sensor
-                              'det_from_sample_cm': 2.0, # The estimated spacing between the sample and the detector
+                              'lr': 1.0E-5,                          
+                              'det_size_cm': None, # The estimated diameter of the sensor
+                              'det_from_sample_cm': None, # The estimated spacing between the sample and the detector
                               'manual_det_coord': True,
                               'set_det_coord_cm': np.array([[0.70, -2.0, 0.70], [0.70, -2.0, -0.70], [-0.70, -2.0, 0.70], [-0.70, -2.0, -0.70]]),
                               'det_on_which_side': "negative",                                 
                               'manual_det_area': True,
                               'set_det_area_cm2': 1.68,       
-                              'det_ds_spacing_cm': 2.4/2.0, # Set this value to the value of det_size_cm divided by a number
-                              'P_folder': 'data/P_array/sample_44_44_20_n/Dis_2.0_detSize_2.4_manual_dpts_4',              
+                              'det_ds_spacing_cm': None, # Set this value to the value of det_size_cm divided by a number
+                              'P_folder': 'data/P_array/sample_44_44_20_n/Dis_2.0_manual_dpts_4',              
                               'f_P': 'Intersecting_Length_44_44_20',  # The output file name has det_size_cm and det_ds_spacing_cm and det_from_sample_cm 
                               'fl_K': fl["K"], # doesn't need to change 
                               'fl_L': fl["L"], # doesn't need to change                    
@@ -132,7 +195,7 @@ params_3d_44_44_20_xtal1_roi_plus = {'recon_idx': 0,  # if start from the checkp
                              }
 
 
-params_3d_44_44_20_xtal1_roi_plus_2 = {'recon_idx': 0,
+params_3d_44_44_20_xtal1_2 = {'recon_idx': 0,
                               'f_recon_parameters': 'recon_parameters.txt',  # The txt file that will save the reconstruction parameters
                               'dev': dev,
                               'selfAb': True,
@@ -145,7 +208,7 @@ params_3d_44_44_20_xtal1_roi_plus_2 = {'recon_idx': 0,
                               'f_initial_guess': 'initialized_grid_concentration',
                               'f_recon_grid': 'grid_concentration',
                               'data_path': './data/Xtal1_align1_adjusted3_ds4',    # the folder where the data file is in
-                              'f_XRF_data': 'xtal1_xrf-roi-plus',    # the aligned channel data file output from XRFtomo                  
+                              'f_XRF_data': 'xtal1_xrf-fits',    # the aligned channel data file output from XRFtomo                  
                               'f_XRT_data': 'xtal1_scalers',         # the aligned scaler data file output from XRFtomo
                               'photon_counts_us_ic_dataset_idx':1,
                               'photon_counts_ds_ic_dataset_idx':2,
@@ -183,19 +246,26 @@ params_3d_44_44_20_xtal1_roi_plus_2 = {'recon_idx': 0,
                               'fl_M': fl["M"]  # doesn't need to change
                              }
 
-params_3d_44_44_20_Al_xtal1_roi_plus = {'recon_idx': 0,
+params_3d_44_44_20_Al_xtal1 = {'recon_idx': 0,
                               'f_recon_parameters': 'recon_parameters.txt',  # The txt file that will save the reconstruction parameters
                               'dev': dev,
+                              'use_std_calibation': True,
+                              'probe_intensity': None,
+                              'std_path': './data/Xtal1/axo_std',
+                              'f_std': 'axo_std.h5',
+                              'std_element_lines_roi': np.array([['Ca', 'K'], ['Fe', 'K'], ['Cu', 'K']]),
+                              'density_std_elements': np.array([1.931, 0.504, 0.284])*1.0E-6,  # unit in g/cm^2
+                              'fitting_method':'XRF_roi_plus', # set to 'XRF_fits' , 'XRF_roi' or 'XRF_roi_plus'
                               'selfAb': False,
                               'cont_from_check_point': False,
                               'use_saved_initial_guess': False,
                               'ini_kind': 'const',  # choose from 'const', 'rand' or 'randn'
-                              'init_const': 0.5,
+                              'init_const': 0.0,
                               'ini_rand_amp': 0.1,
-                              'recon_path': './data/Xtal1_align1_adjusted3_ds4_recon/Ab_F_nEl_1_nDpts_4_b_0.0_lr_1.0E-3_full_solid_angle/Al',
+                              'recon_path': './data/Xtal1_align1_adjusted1_ds4_recon/Ab_F_nEl_1_Dis_2.0_nDpts_4_b1_0.0_b2_25000_lr_1.0E-5/Al',
                               'f_initial_guess': 'initialized_grid_concentration',
                               'f_recon_grid': 'grid_concentration',
-                              'data_path': './data/Xtal1_align1_adjusted3_ds4',    # the folder where the data file is in
+                              'data_path': './data/Xtal1_align1_adjusted1_ds4',    # the folder where the data file is in
                               'f_XRF_data': 'xtal1_xrf-roi-plus',    # the aligned channel data file output from XRFtomo                  
                               'f_XRT_data': 'xtal1_scalers',         # the aligned scaler data file output from XRFtomo
                               'photon_counts_us_ic_dataset_idx':1,
@@ -211,39 +281,47 @@ params_3d_44_44_20_Al_xtal1_roi_plus = {'recon_idx': 0,
                               'sample_height_n': 20,
                               'sample_size_cm': 0.007,                                    
                               'probe_energy': np.array([10.0]),                             
-                              'n_epoch': 160,
+                              'n_epoch': 40,
+                              'save_every_n_epochs': 10,
                               'minibatch_size': 44,
                               'b1': 0.0,  # the regulizer coefficient of the XRT loss
-                              'b2': 0.0,           
-                              'lr': 1.0E-3,                          
-                              'det_size_cm': 2.4, # The estimated diameter of the sensor
-                              'det_from_sample_cm': 2.0, # The estimated spacing between the sample and the detector
+                              'b2': 25000.0,           
+                              'lr': 1.0E-5,                          
+                              'det_size_cm': None, # The estimated diameter of the sensor
+                              'det_from_sample_cm': None, # The estimated spacing between the sample and the detector
                               'manual_det_coord': True,
                               'set_det_coord_cm': np.array([[0.70, -2.0, 0.70], [0.70, -2.0, -0.70], [-0.70, -2.0, 0.70], [-0.70, -2.0, -0.70]]), 
                               'det_on_which_side': "negative",                            
                               'manual_det_area': True,
                               'set_det_area_cm2': 1.68,                                          
-                              'det_ds_spacing_cm': 2.4/2.0, # Set this value to the value of det_size_cm divided by a number
-                              'P_folder': 'data/P_array/sample_44_44_20_n/Dis_1.0_detSize_2.4_manual_dpts_4',              
+                              'det_ds_spacing_cm': None, # Set this value to the value of det_size_cm divided by a number
+                              'P_folder': 'data/P_array/sample_44_44_20_n/Dis_2.0_manual_dpts_4',              
                               'f_P': 'Intersecting_Length_44_44_20',  # The output file name has det_size_cm and det_ds_spacing_cm and det_from_sample_cm 
                               'fl_K': fl["K"], # doesn't need to change 
                               'fl_L': fl["L"], # doesn't need to change                    
                               'fl_M': fl["M"]  # doesn't need to change
                              }
 
-params_3d_44_44_20_Si_xtal1_roi_plus = {'recon_idx': 0,
+params_3d_44_44_20_Si_xtal1 = {'recon_idx': 0,
                               'f_recon_parameters': 'recon_parameters.txt',  # The txt file that will save the reconstruction parameters
                               'dev': dev,
+                              'use_std_calibation': True,
+                              'probe_intensity': None,
+                              'std_path': './data/Xtal1/axo_std',
+                              'f_std': 'axo_std.h5',
+                              'std_element_lines_roi': np.array([['Ca', 'K'], ['Fe', 'K'], ['Cu', 'K']]),
+                              'density_std_elements': np.array([1.931, 0.504, 0.284])*1.0E-6,  # unit in g/cm^2
+                              'fitting_method':'XRF_roi_plus', # set to 'XRF_fits' , 'XRF_roi' or 'XRF_roi_plus'
                               'selfAb': False,
                               'cont_from_check_point': False,
                               'use_saved_initial_guess': False,
                               'ini_kind': 'const',  # choose from 'const', 'rand' or 'randn'
-                              'init_const': 0.5,
+                              'init_const': 0.0,
                               'ini_rand_amp': 0.1,
-                              'recon_path': './data/Xtal1_align1_adjusted3_ds4_recon/Ab_F_nEl_1_nDpts_4_b_0.0_lr_1.0E-3_full_solid_angle/Si_2',
+                              'recon_path': './data/Xtal1_align1_adjusted1_ds4_recon/Ab_F_nEl_1_Dis_2.0_nDpts_4_b1_0.0_b2_25000_lr_1.0E-5/Si',
                               'f_initial_guess': 'initialized_grid_concentration',
                               'f_recon_grid': 'grid_concentration',
-                              'data_path': './data/Xtal1_align1_adjusted3_ds4',    # the folder where the data file is in
+                              'data_path': './data/Xtal1_align1_adjusted1_ds4',    # the folder where the data file is in
                               'f_XRF_data': 'xtal1_xrf-roi-plus',    # the aligned channel data file output from XRFtomo                  
                               'f_XRT_data': 'xtal1_scalers',         # the aligned scaler data file output from XRFtomo
                               'photon_counts_us_ic_dataset_idx':1,
@@ -254,25 +332,26 @@ params_3d_44_44_20_Si_xtal1_roi_plus = {'recon_idx': 0,
                               'this_aN_dic': {"Si": 14},
                               'element_lines_roi': np.array([['Si', 'K']]),  # np.array([["Si, K"], ["Ca, K"]])
                               'n_line_group_each_element': np.array([1]),
-                              'solid_angle_adjustment_factor': 0.5,  # because the detector is made up of 4 sensors with spacing in between(for 2-ID-E XRF), this factor is used to account for the loss of the total amount of photon counts
+                              'solid_angle_adjustment_factor': 1.0,  # because the detector is made up of 4 sensors with spacing in between(for 2-ID-E XRF), this factor is used to account for the loss of the total amount of photon counts
                               'sample_size_n': 44, 
                               'sample_height_n': 20,
                               'sample_size_cm': 0.007,                                    
                               'probe_energy': np.array([10.0]),                             
-                              'n_epoch': 160,
+                              'n_epoch': 40,
+                              'save_every_n_epochs': 10,
                               'minibatch_size': 44,
                               'b1': 0.0,  # the regulizer coefficient of the XRT loss
-                              'b2': 0.0,
-                              'lr': 1.0E-3,                              
-                              'det_size_cm': 2.4, # The estimated diameter of the sensor
-                              'det_from_sample_cm': 2.0, # The estimated spacing between the sample and the detector
+                              'b2': 25000.0,
+                              'lr': 1.0E-5,                              
+                              'det_size_cm': None, # The estimated diameter of the sensor
+                              'det_from_sample_cm': None, # The estimated spacing between the sample and the detector
                               'manual_det_coord': True,
                               'set_det_coord_cm': np.array([[0.70, -2.0, 0.70], [0.70, -2.0, -0.70], [-0.70, -2.0, 0.70], [-0.70, -2.0, -0.70]]), 
                               'det_on_which_side': "negative",                            
                               'manual_det_area': True,
                               'set_det_area_cm2': 1.68,                                          
-                              'det_ds_spacing_cm': 2.4/2.0, # Set this value to the value of det_size_cm divided by a number
-                              'P_folder': 'data/P_array/sample_44_44_20_n/Dis_1.0_detSize_2.4_manual_dpts_4',              
+                              'det_ds_spacing_cm': None, # Set this value to the value of det_size_cm divided by a number
+                              'P_folder': 'data/P_array/sample_44_44_20_n/Dis_2.0_manual_dpts_4',              
                               'f_P': 'Intersecting_Length_44_44_20',  # The output file name has det_size_cm and det_ds_spacing_cm and det_from_sample_cm 
                               'fl_K': fl["K"], # doesn't need to change 
                               'fl_L': fl["L"], # doesn't need to change                    
@@ -281,19 +360,26 @@ params_3d_44_44_20_Si_xtal1_roi_plus = {'recon_idx': 0,
 
 
 
-params_3d_44_44_20_Fe_xtal1_roi_plus = {'recon_idx': 0,
+params_3d_44_44_20_Fe_xtal1 = {'recon_idx': 0,
                               'f_recon_parameters': 'recon_parameters.txt',  # The txt file that will save the reconstruction parameters
                               'dev': dev,
+                              'use_std_calibation': True,
+                              'probe_intensity': None,
+                              'std_path': './data/Xtal1/axo_std',
+                              'f_std': 'axo_std.h5',
+                              'std_element_lines_roi': np.array([['Ca', 'K'], ['Fe', 'K'], ['Cu', 'K']]),
+                              'density_std_elements': np.array([1.931, 0.504, 0.284])*1.0E-6,  # unit in g/cm^2
+                              'fitting_method':'XRF_roi_plus', # set to 'XRF_fits' , 'XRF_roi' or 'XRF_roi_plus'
                               'selfAb': False,
                               'cont_from_check_point': False,
                               'use_saved_initial_guess': False,
                               'ini_kind': 'const',  # choose from 'const', 'rand' or 'randn'
-                              'init_const': 0.5,
+                              'init_const': 0.0,
                               'ini_rand_amp': 0.1,
-                              'recon_path': './data/Xtal1_align1_adjusted3_ds4_recon/Ab_F_nEl_1_nDpts_4_b_0.0_lr_1.0E-3_full_solid_angle/Fe',
+                              'recon_path': './data/Xtal1_align1_adjusted1_ds4_recon/Ab_F_nEl_1_Dis_2.0_nDpts_4_b1_0.0_b2_25000_lr_1.0E-5/Fe',
                               'f_initial_guess': 'initialized_grid_concentration',
                               'f_recon_grid': 'grid_concentration',
-                              'data_path': './data/Xtal1_align1_adjusted3_ds4',    # the folder where the data file is in
+                              'data_path': './data/Xtal1_align1_adjusted1_ds4',    # the folder where the data file is in
                               'f_XRF_data': 'xtal1_xrf-roi-plus',    # the aligned channel data file output from XRFtomo                  
                               'f_XRT_data': 'xtal1_scalers',         # the aligned scaler data file output from XRFtomo
                               'photon_counts_us_ic_dataset_idx':1,
@@ -304,25 +390,26 @@ params_3d_44_44_20_Fe_xtal1_roi_plus = {'recon_idx': 0,
                               'this_aN_dic': {"Fe": 26},
                               'element_lines_roi': np.array([['Fe', 'K']]),  # np.array([["Si, K"], ["Ca, K"]])
                               'n_line_group_each_element': np.array([1]),
-                              'solid_angle_adjustment_factor': 0.5,  # because the detector is made up of 4 sensors with spacing in between(for 2-ID-E XRF), this factor is used to account for the loss of the total amount of photon counts
+                              'solid_angle_adjustment_factor': 1.0,  # because the detector is made up of 4 sensors with spacing in between(for 2-ID-E XRF), this factor is used to account for the loss of the total amount of photon counts
                               'sample_size_n': 44, 
                               'sample_height_n': 20,
                               'sample_size_cm': 0.007,                                    
                               'probe_energy': np.array([10.0]),                             
-                              'n_epoch': 160,
+                              'n_epoch': 40,
+                              'save_every_n_epochs': 10,
                               'minibatch_size': 44,
                               'b1': 0.0,  # the regulizer coefficient of the XRT loss
-                              'b2': 0.0,
-                              'lr': 1.0E-3,                             
-                              'det_size_cm': 2.4, # The estimated diameter of the sensor
-                              'det_from_sample_cm': 2.0, # The estimated spacing between the sample and the detector
+                              'b2': 25000.0,
+                              'lr': 1.0E-5,                             
+                              'det_size_cm': None, # The estimated diameter of the sensor
+                              'det_from_sample_cm': None, # The estimated spacing between the sample and the detector
                               'manual_det_coord': True,
                               'set_det_coord_cm': np.array([[0.70, -2.0, 0.70], [0.70, -2.0, -0.70], [-0.70, -2.0, 0.70], [-0.70, -2.0, -0.70]]), 
                               'det_on_which_side': "negative",                            
                               'manual_det_area': True,
                               'set_det_area_cm2': 1.68,                                          
-                              'det_ds_spacing_cm': 2.4/2.0, # Set this value to the value of det_size_cm divided by a number
-                              'P_folder': 'data/P_array/sample_44_44_20_n/Dis_1.0_detSize_2.4_manual_dpts_4',              
+                              'det_ds_spacing_cm': None, # Set this value to the value of det_size_cm divided by a number
+                              'P_folder': 'data/P_array/sample_44_44_20_n/Dis_2.0_manual_dpts_4',              
                               'f_P': 'Intersecting_Length_44_44_20',  # The output file name has det_size_cm and det_ds_spacing_cm and det_from_sample_cm 
                               'fl_K': fl["K"], # doesn't need to change 
                               'fl_L': fl["L"], # doesn't need to change                    
@@ -330,19 +417,26 @@ params_3d_44_44_20_Fe_xtal1_roi_plus = {'recon_idx': 0,
                              }
 
 
-params_3d_44_44_20_Cu_xtal1_roi_plus = {'recon_idx': 0,
+params_3d_44_44_20_Cu_xtal1 = {'recon_idx': 0,
                               'f_recon_parameters': 'recon_parameters.txt',  # The txt file that will save the reconstruction parameters
                               'dev': dev,
+                              'use_std_calibation': True,
+                              'probe_intensity': None,
+                              'std_path': './data/Xtal1/axo_std',
+                              'f_std': 'axo_std.h5',
+                              'std_element_lines_roi': np.array([['Ca', 'K'], ['Fe', 'K'], ['Cu', 'K']]),
+                              'density_std_elements': np.array([1.931, 0.504, 0.284])*1.0E-6,  # unit in g/cm^2
+                              'fitting_method':'XRF_roi_plus', # set to 'XRF_fits' , 'XRF_roi' or 'XRF_roi_plus'
                               'selfAb': False,
                               'cont_from_check_point': False,
                               'use_saved_initial_guess': False,
                               'ini_kind': 'const',  # choose from 'const', 'rand' or 'randn'
-                              'init_const': 0.5,
+                              'init_const': 0.0,
                               'ini_rand_amp': 0.1,
-                              'recon_path': './data/Xtal1_align1_adjusted3_ds4_recon/Ab_F_nEl_1_nDpts_4_b_0.0_lr_1.0E-3_full_solid_angle/Cu',
+                              'recon_path': './data/Xtal1_align1_adjusted1_ds4_recon/Ab_F_nEl_1_Dis_2.0_nDpts_4_b1_0.0_b2_25000_lr_1.0E-5/Cu',
                               'f_initial_guess': 'initialized_grid_concentration',
                               'f_recon_grid': 'grid_concentration',
-                              'data_path': './data/Xtal1_align1_adjusted3_ds4',    # the folder where the data file is in
+                              'data_path': './data/Xtal1_align1_adjusted1_ds4',    # the folder where the data file is in
                               'f_XRF_data': 'xtal1_xrf-roi-plus',    # the aligned channel data file output from XRFtomo                  
                               'f_XRT_data': 'xtal1_scalers',         # the aligned scaler data file output from XRFtomo
                               'photon_counts_us_ic_dataset_idx':1,
@@ -353,25 +447,26 @@ params_3d_44_44_20_Cu_xtal1_roi_plus = {'recon_idx': 0,
                               'this_aN_dic': {"Cu": 29},
                               'element_lines_roi': np.array([['Cu', 'K']]),  # np.array([["Si, K"], ["Ca, K"]])
                               'n_line_group_each_element': np.array([1]),
-                              'solid_angle_adjustment_factor': 0.5,  # because the detector is made up of 4 sensors with spacing in between(for 2-ID-E XRF), this factor is used to account for the loss of the total amount of photon counts
+                              'solid_angle_adjustment_factor': 1.0,  # because the detector is made up of 4 sensors with spacing in between(for 2-ID-E XRF), this factor is used to account for the loss of the total amount of photon counts
                               'sample_size_n': 44, 
                               'sample_height_n': 20,
                               'sample_size_cm': 0.007,                                    
                               'probe_energy': np.array([10.0]),                             
-                              'n_epoch': 160,
+                              'n_epoch': 40,
+                              'save_every_n_epochs': 10,
                               'minibatch_size': 44,
                               'b1': 0.0,  # the regulizer coefficient of the XRT loss
-                              'b2': 0.0,
-                              'lr': 1.0E-3,                              
-                              'det_size_cm': 2.4, # The estimated diameter of the sensor
-                              'det_from_sample_cm': 2.0, # The estimated spacing between the sample and the detector
+                              'b2': 25000.0,
+                              'lr': 1.0E-5,                              
+                              'det_size_cm': None, # The estimated diameter of the sensor
+                              'det_from_sample_cm': None, # The estimated spacing between the sample and the detector
                               'manual_det_coord': True,
                               'set_det_coord_cm': np.array([[0.70, -2.0, 0.70], [0.70, -2.0, -0.70], [-0.70, -2.0, 0.70], [-0.70, -2.0, -0.70]]), 
                               'det_on_which_side': "negative",                            
                               'manual_det_area': True,
                               'set_det_area_cm2': 1.68,                                          
-                              'det_ds_spacing_cm': 2.4/2.0, # Set this value to the value of det_size_cm divided by a number
-                              'P_folder': 'data/P_array/sample_44_44_20_n/Dis_1.0_detSize_2.4_manual_dpts_4',              
+                              'det_ds_spacing_cm': None, # Set this value to the value of det_size_cm divided by a number
+                              'P_folder': 'data/P_array/sample_44_44_20_n/Dis_2.0_manual_dpts_4',              
                               'f_P': 'Intersecting_Length_44_44_20',  # The output file name has det_size_cm and det_ds_spacing_cm and det_from_sample_cm 
                               'fl_K': fl["K"], # doesn't need to change 
                               'fl_L': fl["L"], # doesn't need to change                    
@@ -379,55 +474,9 @@ params_3d_44_44_20_Cu_xtal1_roi_plus = {'recon_idx': 0,
                              }
 
 
-params_3d_44_44_20_Al_Si_xtal1_roi_plus = {'recon_idx': 0,
-                              'f_recon_parameters': 'recon_parameters.txt',  # The txt file that will save the reconstruction parameters
-                              'dev': dev,
-                              'selfAb': True,
-                              'cont_from_check_point': False,
-                              'use_saved_initial_guess': True,
-                              'ini_kind': 'const',  # choose from 'const', 'rand' or 'randn'
-                              'init_const': 0.5,
-                              'ini_rand_amp': 0.1,
-                              'recon_path': './data/Xtal1_align1_adjusted3_ds4_recon/Ab_T_nEl_2_Dis_1.0_nDpts_4_b_0.0_lr_1.0E-1_ini_Al_Si',
-                              'f_initial_guess': 'initialized_grid_concentration',
-                              'f_recon_grid': 'grid_concentration',
-                              'data_path': './data/Xtal1_align1_adjusted3_ds4',    # the folder where the data file is in
-                              'f_XRF_data': 'xtal1_xrf-roi-plus',    # the aligned channel data file output from XRFtomo                  
-                              'f_XRT_data': 'xtal1_scalers',         # the aligned scaler data file output from XRFtomo
-                              'photon_counts_us_ic_dataset_idx':1,
-                              'photon_counts_ds_ic_dataset_idx':2,
-                              'XRT_ratio_dataset_idx':3,                # the index in the scalers dataset that stores the ratio of the transmitted photon counts
-                              'theta_ls_dataset_idx': 'exchange/theta', # the dataset in the channel data file that stores the object angle
-                              'channel_names': 'exchange/elements',     # the dataset in the channel data file that stores the cahnnel names
-                              'this_aN_dic': {"Al":13, "Si": 14},
-                              'element_lines_roi': np.array([['Al', 'K'], ['Si', 'K']]),  # np.array([["Si, K"], ["Ca, K"]])
-                              'n_line_group_each_element': np.array([1, 1]),
-                              'solid_angle_adjustment_factor': 0.5,  # because the detector is made up of 4 sensors with spacing in between(for 2-ID-E XRF), this factor is used to account for the loss of the total amount of photon counts
-                              'sample_size_n': 44, 
-                              'sample_height_n': 20,
-                              'sample_size_cm': 0.007,                                    
-                              'probe_energy': np.array([10.0]),                             
-                              'n_epoch': 160,
-                              'minibatch_size': 44,
-                              'b1': 0.0,  # the regulizer coefficient of the XRT loss
-                              'b2': 0.0,
-                              'lr': 1.0E-1,                              
-                              'det_size_cm': 2.4, # The estimated diameter of the sensor
-                              'det_from_sample_cm': 1.0, # The estimated spacing between the sample and the detector
-                              'manual_det_coord': True,
-                              'set_det_coord_cm': np.array([[0.70, -1.0, 0.70], [0.70, -1.0, -0.70], [-0.70, -1.0, 0.70], [-0.70, -1.0, -0.70]]), 
-                              'det_on_which_side': "negative",                            
-                              'manual_det_area': True,
-                              'set_det_area_cm2': 1.68,                                          
-                              'det_ds_spacing_cm': 2.4/2.0, # Set this value to the value of det_size_cm divided by a number
-                              'P_folder': 'data/P_array/sample_44_44_20_n/Dis_1.0_detSize_2.4_manual_dpts_4',              
-                              'f_P': 'Intersecting_Length_44_44_20',  # The output file name has det_size_cm and det_ds_spacing_cm and det_from_sample_cm 
-                              'fl_K': fl["K"], # doesn't need to change 
-                              'fl_L': fl["L"], # doesn't need to change                    
-                              'fl_M': fl["M"]  # doesn't need to change
-                             }
 
-params_3d_88_88_40_xtal1_roi_plus = {'recon_idx': 0,
+
+params_3d_88_88_40_xtal1 = {'recon_idx': 0,
                               'f_recon_parameters': 'recon_parameters.txt',  # The txt file that will save the reconstruction parameters
                               'dev': dev,
                               'selfAb': True,
@@ -474,7 +523,7 @@ params_3d_88_88_40_xtal1_roi_plus = {'recon_idx': 0,
                               'fl_M': fl["M"]  # doesn't need to change
                              }
 
-params = params_3d_44_44_20_xtal1_roi_plus
+params = params_3d_44_44_20_xtal1
 
 if __name__ == "__main__": 
     

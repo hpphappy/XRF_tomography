@@ -21,6 +21,7 @@ import torch.nn as nn
 from tqdm import tqdm
 import time
 from data_generation_fns_mpi_updating_realData import rotate, MakeFLlinesDictionary_manual, intersecting_length_fl_detectorlet_3d_mpi_write_h5_3_manual, find_lines_roi_idx_from_dataset
+from standard_calibration import calibrate_incident_probe_intensity
 from array_ops_mpi_updating_realData import initialize_guess_3d
 from forward_model_mpi_updating_realData import PPM
 from misc_mpi_updating_realData import print_flush_root, print_flush_all
@@ -48,12 +49,14 @@ fl = {"K": np.array([xlib.KA1_LINE, xlib.KA2_LINE, xlib.KA3_LINE, xlib.KB1_LINE,
      }
 
     
-def reconstruct_jXRFT_tomography(recon_idx, f_recon_parameters, dev, selfAb, cont_from_check_point, use_saved_initial_guess, ini_kind, init_const, ini_rand_amp,
+def reconstruct_jXRFT_tomography(recon_idx, f_recon_parameters, dev, use_std_calibation, probe_intensity, 
+                                 std_path, f_std, std_element_lines_roi, density_std_elements, fitting_method,
+                                 selfAb, cont_from_check_point, use_saved_initial_guess, ini_kind, init_const, ini_rand_amp,
                                  recon_path, f_initial_guess, f_recon_grid, data_path, f_XRF_data, f_XRT_data,
                                  photon_counts_us_ic_dataset_idx, photon_counts_ds_ic_dataset_idx, XRT_ratio_dataset_idx, theta_ls_dataset_idx,
                                  channel_names, this_aN_dic, element_lines_roi, n_line_group_each_element, solid_angle_adjustment_factor, 
                                  sample_size_n, sample_height_n, sample_size_cm, probe_energy,
-                                 n_epoch, minibatch_size,
+                                 n_epoch, save_every_n_epochs, minibatch_size,
                                  b1, b2, lr,
                                  det_size_cm, det_from_sample_cm, manual_det_coord, set_det_coord_cm, det_on_which_side,
                                  manual_det_area, set_det_area_cm2,
@@ -102,40 +105,44 @@ def reconstruct_jXRFT_tomography(recon_idx, f_recon_parameters, dev, selfAb, con
     n_theta = len(theta_ls)  
     ####------------------------####
    
-    element_lines_roi_idx = find_lines_roi_idx_from_dataset(data_path, f_XRF_data, element_lines_roi)
+    element_lines_roi_idx = find_lines_roi_idx_from_dataset(data_path, f_XRF_data, element_lines_roi, std_sample = False)
     
     #### pick only the element lines of interests from the channel data. flatten the data to strips
     #### original dim = (n_lines_roi, n_theta, sample_height_n, sample_size_n)
     y1_true = tc.from_numpy(y1_true_handle['exchange/data'][element_lines_roi_idx]).view(len(element_lines_roi_idx), n_theta, sample_height_n * sample_size_n).to(dev)
-    #### pick the probe photon counts after the ion chamber from the scalers data as the transmission data
+#     #### pick the probe photon counts after the ion chamber from the scalers data as the transmission data
 #     y2_true = tc.from_numpy(y2_true_handle['exchange/data'][photon_counts_ds_ic_dataset_idx]).view(n_theta, sample_height_n * sample_size_n).to(dev)
     
     ## Use this y2_true if using the attenuating expoenent in the XRT loss calculation
     y2_true = tc.from_numpy(y2_true_handle['exchange/data'][XRT_ratio_dataset_idx]).view(n_theta, sample_height_n * sample_size_n).to(dev)
     y2_true = - tc.log(y2_true)
     
-    #### pick the probe photon counts before the ion chamber from the scalers data as the incoming probe photon counts
-    probe_cts = tc.from_numpy(y2_true_handle['exchange/data'][photon_counts_us_ic_dataset_idx]).view(n_theta, sample_height_n * sample_size_n).to(dev)
+    #### pick the probe photon counts calibrated for all optics and detectors
+    if use_std_calibation:
+        probe_cts = calibrate_incident_probe_intensity(std_path, f_std, fitting_method, std_element_lines_roi, density_std_elements, probe_energy)
+    else:
+        probe_cts = probe_intensity
 
     minibatch_ls_0 = tc.arange(n_ranks).to(dev) #dev
     n_batch = (sample_height_n * sample_size_n) // (n_ranks * minibatch_size) #scalar
     
-
     
     if manual_det_area == True:
 #         fl_sig_collecting_ratio = set_det_area_cm2 / (4 * np.pi * det_from_sample_cm**2)
         fl_sig_collecting_ratio = 1.0
     
     else:
-        #### Calculate the detecting solid angle covered by the area of the spherical cap covered by the detector #### 
-        # The distance from the sample to the boundary of the detector
-        r = (det_from_sample_cm**2 + (det_size_cm/2)**2)**0.5   
-        # The height of the cap
-        h =  r - det_from_sample_cm
-        # The area of the cap area
-        fl_sig_collecting_cap_area = np.pi*((det_size_cm/2)**2 + h**2)
-        # The ratio of the detecting solid angle / full soilid angle
-        fl_sig_collecting_ratio = fl_sig_collecting_cap_area / (4*np.pi*r**2)  
+#         #### Calculate the detecting solid angle covered by the area of the spherical cap covered by the detector #### 
+#         # The distance from the sample to the boundary of the detector
+#         r = (det_from_sample_cm**2 + (det_size_cm/2)**2)**0.5   
+#         # The height of the cap
+#         h =  r - det_from_sample_cm
+#         # The area of the cap area
+#         fl_sig_collecting_cap_area = np.pi*((det_size_cm/2)**2 + h**2)
+#         # The ratio of the detecting solid angle / full soilid angle
+#         fl_sig_collecting_ratio = fl_sig_collecting_cap_area / (4*np.pi*r**2)
+#         fl_sig_collecting_ratio = ((np.pi * (det_size_cm/2)**2) / det_from_sample_cm**2)/(4*np.pi)
+        fl_sig_collecting_ratio = 1.0
     
     if rank == 0: 
         if not os.path.exists(recon_path):
@@ -147,7 +154,7 @@ def reconstruct_jXRFT_tomography(recon_idx, f_recon_parameters, dev, selfAb, con
     if not os.path.isfile(P_save_path + ".h5"):   
         intersecting_length_fl_detectorlet_3d_mpi_write_h5_3_manual(n_ranks, minibatch_size, rank,
                                                                     manual_det_coord, set_det_coord_cm, det_on_which_side,
-                                                                    det_size_cm, det_from_sample_cm, det_ds_spacing_cm,
+                                                                    manual_det_area, det_size_cm, det_from_sample_cm, det_ds_spacing_cm,
                                                                     sample_size_n, sample_size_cm,
                                                                     sample_height_n, P_folder, f_P) #cpu
     
@@ -201,10 +208,14 @@ def reconstruct_jXRFT_tomography(recon_idx, f_recon_parameters, dev, selfAb, con
                 recon_params.write("sample_height_n = %d\n" %sample_height_n)
                 recon_params.write("sample_size_cm = %.2f\n" %sample_size_cm)
                 recon_params.write("probe_energy_keV = %.2f\n" %probe_energy[0])
-                recon_params.write("max_incident_probe_cts = %.2e\n" %tc.max(probe_cts))
-                recon_params.write("det_size_cm = %.2f\n" %det_size_cm)
-                recon_params.write("det_from_sample_cm = %.2f\n" %det_from_sample_cm)
-                recon_params.write("det_ds_spacing_cm = %.2f\n" %det_ds_spacing_cm)
+                recon_params.write("incident_probe_cts = %.2e\n" %probe_cts)
+                
+                if not manual_det_area:
+                    recon_params.write("det_size_cm = %.2f\n" %det_size_cm)
+                
+                if not manual_det_coord:
+                    recon_params.write("det_from_sample_cm = %.2f\n" %det_from_sample_cm)
+                    recon_params.write("det_ds_spacing_cm = %.2f\n" %det_ds_spacing_cm)
         comm.Barrier()          
                     
         for epoch in range(n_epoch):
@@ -262,13 +273,12 @@ def reconstruct_jXRFT_tomography(recon_idx, f_recon_parameters, dev, selfAb, con
 #                     stdout_options = {'root':0, 'output_folder': recon_path, 'save_stdout': True, 'print_terminal': False}
 #                     print_flush_root(rank, val=minibatch_ls, output_file='minibatch_ls.csv', **stdout_options)
                     
-                    ## Load us_ic as the incoming probe count in this minibatch
-                    probe_cts_minibatch = probe_cts[this_theta_idx, p * minibatch_size: (p+1) * minibatch_size] #dev         
+                    ## Load us_ic as the incoming probe count in this minibatch       
             
                     model = PPM(dev, selfAb, lac, X, p, n_element, n_lines, FL_line_attCS_ls,
                                  detected_fl_unit_concentration, n_line_group_each_element,
                                  sample_height_n, minibatch_size, sample_size_n, sample_size_cm,
-                                 probe_energy, probe_cts_minibatch, probe_attCS_ls,
+                                 probe_energy, probe_cts, probe_attCS_ls,
                                  theta, solid_angle_adjustment_factor,
                                  n_det, P_minibatch, det_size_cm, det_from_sample_cm, fl_sig_collecting_ratio)
                     
@@ -335,7 +345,7 @@ def reconstruct_jXRFT_tomography(recon_idx, f_recon_parameters, dev, selfAb, con
                 comm.Barrier() 
                     
                 del lac
-                tc.cuda.empty_cache()
+#                 tc.cuda.empty_cache()
 
             stdout_options = {'root':0, 'output_folder': recon_path, 'save_stdout': True, 'print_terminal': False}
             per_epoch_time = time.perf_counter() - t0_epoch
@@ -346,7 +356,7 @@ def reconstruct_jXRFT_tomography(recon_idx, f_recon_parameters, dev, selfAb, con
                 epsilon = tc.mean((X_cpu - X_previous)**2)
                 print_flush_root(rank, val=epsilon, output_file=f'model_mse_epoch.csv', **stdout_options)
                 
-                if epsilon < 10**(-6):             
+                if epsilon < 10**(-12):             
                     if rank == 0:
                         recon_idx += 1
                         np.save(os.path.join(recon_path, f_recon_grid)+"_"+str(epoch)+"_ending_condition"+".npy", X_cpu.numpy())
@@ -363,8 +373,12 @@ def reconstruct_jXRFT_tomography(recon_idx, f_recon_parameters, dev, selfAb, con
                 X_previous = X_cpu
             
             comm.Barrier()
-    
-            if  rank == 0 and ((epoch+1)%40 == 0 and (epoch+1)//40 !=0 or epoch+1 == n_epoch):
+#             print(rank == 0)
+#             print((epoch+1)%1 == 0)
+#             print((epoch+1)//40 !=0)
+#             print(epoch+1 == n_epoch)
+            
+            if  rank == 0 and ((epoch+1)%save_every_n_epochs == 0 and (epoch+1)//save_every_n_epochs !=0 or epoch+1 == n_epoch):
                 recon_idx += 1
                 np.save(os.path.join(recon_path, f_recon_grid)+"_"+str(epoch)+".npy", X_cpu.numpy())
                 dxchange.write_tiff(X_cpu.numpy(), os.path.join(recon_path, f_recon_grid)+"_"+str(epoch), dtype='float32', overwrite=True)            
@@ -374,7 +388,7 @@ def reconstruct_jXRFT_tomography(recon_idx, f_recon_parameters, dev, selfAb, con
         comm.Barrier()
         
         if rank == 0:            
-            fig6 = plt.figure(figsize=(8,15))
+            fig6 = plt.figure(figsize=(10,15))
             gs6 = gridspec.GridSpec(nrows=3, ncols=1, width_ratios=[1])
 
             fig6_ax1 = fig6.add_subplot(gs6[0,0])
@@ -455,10 +469,13 @@ def reconstruct_jXRFT_tomography(recon_idx, f_recon_parameters, dev, selfAb, con
                 recon_params.write("sample_height_n = %d\n" %sample_height_n)
                 recon_params.write("sample_size_cm = %.2f\n" %sample_size_cm)
                 recon_params.write("probe_energy_keV = %.2f\n" %probe_energy[0])
-                recon_params.write("max_incident_probe_cts = %.2e\n" %tc.max(probe_cts))
-                recon_params.write("det_size_cm = %.2f\n" %det_size_cm)
-                recon_params.write("det_from_sample_cm = %.2f\n" %det_from_sample_cm)
-                recon_params.write("det_ds_spacing_cm = %.2f\n" %det_ds_spacing_cm)
+                recon_params.write("incident_probe_cts = %.2e\n" %probe_cts)             
+                if not manual_det_area:
+                    recon_params.write("det_size_cm = %.2f\n" %det_size_cm)
+                
+                if not manual_det_coord:
+                    recon_params.write("det_from_sample_cm = %.2f\n" %det_from_sample_cm)
+                    recon_params.write("det_ds_spacing_cm = %.2f\n" %det_ds_spacing_cm)
         comm.Barrier()  
        
         for epoch in range(n_epoch):
@@ -502,14 +519,11 @@ def reconstruct_jXRFT_tomography(recon_idx, f_recon_parameters, dev, selfAb, con
                     p = minibatch_ls[rank]
                     P_minibatch = tc.from_numpy(P_handle['P_array'][:,:, p * dia_len_n * minibatch_size * sample_size_n: (p+1) * dia_len_n * minibatch_size * sample_size_n]).to(dev)                                      
                     n_det = P_minibatch.shape[0]  
-                    
-                    ## Load us_ic as the incoming probe count in this minibatch
-                    probe_cts_minibatch = probe_cts[this_theta_idx, p * minibatch_size: (p+1) * minibatch_size] #dev
-                    
+                                       
                     model = PPM(dev, selfAb, lac, X, p, n_element, n_lines, FL_line_attCS_ls,
                                  detected_fl_unit_concentration, n_line_group_each_element,
                                  sample_height_n, minibatch_size, sample_size_n, sample_size_cm,
-                                 probe_energy, probe_cts_minibatch, probe_attCS_ls,
+                                 probe_energy, probe_cts, probe_attCS_ls,
                                  theta, solid_angle_adjustment_factor,
                                  n_det, P_minibatch, det_size_cm, det_from_sample_cm, fl_sig_collecting_ratio)
 
@@ -575,7 +589,7 @@ def reconstruct_jXRFT_tomography(recon_idx, f_recon_parameters, dev, selfAb, con
                 comm.Barrier() 
                     
                 del lac
-                tc.cuda.empty_cache()
+#                 tc.cuda.empty_cache()
                 
                 
             stdout_options = {'root':0, 'output_folder': recon_path, 'save_stdout': True, 'print_terminal': False}
@@ -587,7 +601,7 @@ def reconstruct_jXRFT_tomography(recon_idx, f_recon_parameters, dev, selfAb, con
                 epsilon = tc.mean((X_cpu - X_previous)**2)
                 print_flush_root(rank, val=epsilon, output_file=f'model_mse_epoch.csv', **stdout_options)
                 
-                if epsilon < 10**(-6):             
+                if epsilon < 10**(-12):             
                     if rank == 0:
                         recon_idx += 1
                         np.save(os.path.join(recon_path, f_recon_grid)+"_"+str(epoch)+"_ending_condition"+".npy", X_cpu.numpy())
@@ -603,8 +617,8 @@ def reconstruct_jXRFT_tomography(recon_idx, f_recon_parameters, dev, selfAb, con
             if rank == 0:
                 X_previous = X_cpu            
             comm.Barrier()            
-                      
-            if  rank == 0 and ((epoch+1)%40 == 0 and (epoch+1)//40 !=0 or epoch+1 == n_epoch):
+            
+            if  rank == 0 and ((epoch+1)%save_every_n_epochs == 0 and (epoch+1)//save_every_n_epochs !=0 or epoch+1 == n_epoch):
                 recon_idx += 1
                 np.save(os.path.join(recon_path, f_recon_grid)+"_"+str(starting_epoch+epoch)+".npy", X_cpu.numpy())
                 dxchange.write_tiff(X_cpu.numpy(), os.path.join(recon_path, f_recon_grid)+"_"+str(starting_epoch+epoch), dtype='float32', overwrite=True)    
@@ -618,7 +632,7 @@ def reconstruct_jXRFT_tomography(recon_idx, f_recon_parameters, dev, selfAb, con
             XRF_loss_whole_obj = tc.cat((XRF_loss_whole_obj, XRF_loss_whole_obj_cont))
             XRT_loss_whole_obj = tc.cat((XRT_loss_whole_obj, XRT_loss_whole_obj_cont))
  
-            fig6 = plt.figure(figsize=(8,15))
+            fig6 = plt.figure(figsize=(10,15))
             gs6 = gridspec.GridSpec(nrows=3, ncols=1, width_ratios=[1])
 
             fig6_ax1 = fig6.add_subplot(gs6[0,0])

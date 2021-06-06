@@ -1,0 +1,15 @@
+Xtal1 
+
+alignment by XRFtomo
+---------------------> Xtal1_align1
+
+(1) The data dimension stored in 'xtal1_xrf-fits', 'xtal1_xrf-roi', 'xtal1_xrf-roi-plus' is (23, 110, 81, 176). To remove the data taken from upper and lower slices of the sample, pick index 4:68 for axis 2 such that the data dimension becomes (23, 110, 64, 176).
+
+(2) Replace negative value in 'xtal1_xrf-fits', 'xtal1_xrf-roi', 'xtal1_xrf-roi-plus' with zero.
+
+(3) For the scalers dataset, tile each projection numpy.tile(projection, (3,3)), remove hot spots in abs_ic by a 7x7 median filter
+(4) Adjust abs_ic
+abs_ic_adjusted: scale abs_ic so that the maxima value is 1.
+(5)Adjust ds_ic
+ds_ic_adjusted = us_ic * abs_ic_adjusted
+-------------------------------------------------------------> Xtal1_align1_adjusted2

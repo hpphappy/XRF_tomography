@@ -14,7 +14,7 @@ class PPM(nn.Module):
     def __init__(self, dev, selfAb, lac, grid_concentration, p, n_element, n_lines, 
                  FL_line_attCS_ls, detected_fl_unit_concentration, n_line_group_each_element,
                  sample_height_n, minibatch_size, sample_size_n, sample_size_cm,          
-                 probe_energy, probe_cts_minibatch, probe_attCS_ls,
+                 probe_energy, probe_cts, probe_attCS_ls,
                  theta, solid_angle_adjustment_factor,
                  n_det, P_minibatch, det_size_cm, det_from_sample_cm, fl_sig_collecting_ratio):
         """
@@ -43,7 +43,7 @@ class PPM(nn.Module):
         
         self.xp = self.init_xp() # initialize the values of the minibatch      
         self.probe_energy = probe_energy  
-        self.probe_cts = probe_cts_minibatch
+        self.probe_cts = probe_cts
         self.probe_attCS_ls =  probe_attCS_ls
         self.probe_before_attenuation_flat = self.init_probe()        
               
@@ -69,8 +69,6 @@ class PPM(nn.Module):
     def init_SA_theta(self):
         if self.selfAb == True:
             voxel_idx_offset = self.p * self.n_voxel_minibatch        
-#             att_exponent = tc.stack([self.lac[:,:, tc.clamp((self.P_minibatch[m,0] - voxel_idx_offset), 0, self.n_voxel_minibatch).to(dtype=tc.long), self.P_minibatch[m,1].to(dtype=tc.long)]
-#                                      * self.P_minibatch[m,2].view(1, 1, -1).repeat(self.n_element, self.n_lines, 1) for m in range(self.n_det)])
             
             att_exponent = tc.stack([self.lac[:,:, tc.clamp((self.P_minibatch[m,0] - voxel_idx_offset), 0, self.n_voxel_minibatch).to(dtype=tc.long), self.P_minibatch[m,1].to(dtype=tc.long)]
                                      * self.P_minibatch[m,2].repeat(self.n_element, self.n_lines, 1) for m in range(self.n_det)])
@@ -91,7 +89,7 @@ class PPM(nn.Module):
         return SA_theta
 
     def init_probe(self):       
-        probe_before_attenuation = self.probe_cts.view(self.minibatch_size, 1) * tc.ones(self.minibatch_size, self.sample_size_n, device = self.dev)
+        probe_before_attenuation = self.probe_cts * tc.ones(self.minibatch_size, self.sample_size_n, device = self.dev)
         return probe_before_attenuation.view(self.n_voxel_minibatch)
     
     

@@ -64,21 +64,6 @@ params_3d_64_64_64_nElements_2 = {'src_path': os.path.join('./data/sample2_pad/n
                    'dev': dev
                   }
 
-params_3d_64_64_64_nElements_1 = {'src_path': os.path.join('./data/sample2_pad/nElements_1', 'grid_concentration.npy'),
-                   'theta_st': tc.tensor(0).to(dev), 
-                   'theta_end': tc.tensor(2 * np.pi).to(dev),
-                   'n_theta': tc.tensor(200).to(dev), 
-                   'sample_height_n': tc.tensor(64).to(dev),
-                   'sample_size_n': tc.tensor(64).to(dev),
-                   'sample_size_cm': tc.tensor(0.01).to(dev),
-                   'this_aN_dic': {"Ca": 20},
-                   'probe_energy': np.array([20.0]),
-                   'probe_cts': tc.tensor(1.0E7).to(dev), 
-                   'save_path': './data/sample2_data/nElements_1',
-                   'save_fname': 'XRT_sample2',
-                   'theta_sep': True,
-                   'dev': dev
-                  }
 
 
 params_3d_64_64_64_nElements_4 = {'src_path': os.path.join('./data/sample2_pad/nElements_4', 'grid_concentration.npy'),
@@ -179,18 +164,18 @@ params_3d_32_32_32_nElements_2 = {'src_path': os.path.join('./data/sample5_size_
                    'dev': dev
                   }
 
-params_3d_64_64_64_nElements_2_2 = {'src_path': os.path.join('./data/sample8_size_64_pad/nElements_2', 'grid_concentration.npy'),
+params_3d_64_64_64_nElements_1 = {'src_path': os.path.join('../data/sample_9_size_64_pad/nElements_1', 'grid_concentration.npy'),
                    'theta_st': tc.tensor(0).to(dev), 
                    'theta_end': tc.tensor(2 * np.pi).to(dev),
                    'n_theta': tc.tensor(200).to(dev), 
                    'sample_height_n': tc.tensor(64).to(dev),
                    'sample_size_n': tc.tensor(64).to(dev),
                    'sample_size_cm': tc.tensor(0.01).to(dev),
-                   'this_aN_dic': {"Ca": 20, "Sc": 21},
+                   'this_aN_dic': {"Si": 14},
                    'probe_energy': np.array([20.0]),
                    'probe_cts': tc.tensor(1.0E7).to(dev), 
-                    'save_path': './data/sample8_size_64_data/nElements_2/nThetas_200_limitedSolidAngle/solidAngle_frac_0.0156/Noise',
-                   'save_fname': 'XRT_sample8',
+                   'save_path': '../data/sample_9_size_64_data/nElements_1',
+                   'save_fname': 'XRT_sample9',
                    'theta_sep': True,
                    'Poisson_noise': True,             
                    'dev': dev
@@ -215,7 +200,7 @@ params_3d_44_44_20_xtal1_roi_plus = {'src_path': os.path.join('../data/Xtal1_ali
                   }
 
     
-params = params_3d_44_44_20_xtal1_roi_plus
+params = params_3d_64_64_64_nElements_1
 
 
 if __name__ == "__main__":  

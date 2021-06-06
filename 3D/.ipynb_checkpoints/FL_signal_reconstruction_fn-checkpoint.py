@@ -19,13 +19,14 @@ import torch as tc
 tc.set_default_tensor_type(tc.FloatTensor)
 import time
 from data_generation_fns_mpi_updating_realData import rotate, MakeFLlinesDictionary_manual, intersecting_length_fl_detectorlet_3d_mpi_write_h5_3_manual
+from standard_calibration import calibrate_incident_probe_intensity
 from misc_mpi_updating_realData import print_flush_root, print_flush_all
 from forward_model_mpi_updating_realData import PPM
 import warnings
 warnings.filterwarnings("ignore")
 
     
-def generate_reconstructed_FL_signal(dev, selfAb,
+def generate_reconstructed_FL_signal(dev, std_path, f_std, fitting_method, std_element_lines_roi, density_std_elements, selfAb,
                                      recon_path, f_recon_grid, f_reconstructed_XRF_signal, f_reconstructed_XRT_signal,
                                      data_path, f_XRT_data,
                                      photon_counts_us_ic_dataset_idx, abs_ic_dataset_idx,
@@ -80,24 +81,26 @@ def generate_reconstructed_FL_signal(dev, selfAb,
     
     
     #### pick the probe photon counts before the ion chamber from the scalers data as the incoming probe photon counts
-    probe_cts = tc.from_numpy(y2_true_handle['exchange/data'][photon_counts_us_ic_dataset_idx]).view(n_theta, sample_height_n * sample_size_n).to(dev)
+    probe_cts = calibrate_incident_probe_intensity(std_path, f_std, fitting_method, std_element_lines_roi, density_std_elements, probe_energy)
 
     minibatch_ls_0 = tc.arange(n_ranks).to(dev) #dev
     n_batch = (sample_height_n * sample_size_n) // (n_ranks * minibatch_size) #scalar
      
     if manual_det_area == True:
-        fl_sig_collecting_ratio = set_det_area_cm2 / (4 * np.pi * det_from_sample_cm**2)
+#         fl_sig_collecting_ratio = set_det_area_cm2 / (4 * np.pi * det_from_sample_cm**2)
+        fl_sig_collecting_ratio = 1.0
     
     else:
-        #### Calculate the detecting solid angle covered by the area of the spherical cap covered by the detector #### 
-        # The distance from the sample to the boundary of the detector
-        r = (det_from_sample_cm**2 + (det_size_cm/2)**2)**0.5   
-        # The height of the cap
-        h =  r - det_from_sample_cm
-        # The area of the cap area
-        fl_sig_collecting_cap_area = np.pi*((det_size_cm/2)**2 + h**2)
-        # The ratio of the detecting solid angle / full soilid angle
-        fl_sig_collecting_ratio = fl_sig_collecting_cap_area / (4*np.pi*r**2)  
+#         #### Calculate the detecting solid angle covered by the area of the spherical cap covered by the detector #### 
+#         # The distance from the sample to the boundary of the detector
+#         r = (det_from_sample_cm**2 + (det_size_cm/2)**2)**0.5   
+#         # The height of the cap
+#         h =  r - det_from_sample_cm
+#         # The area of the cap area
+#         fl_sig_collecting_cap_area = np.pi*((det_size_cm/2)**2 + h**2)
+#         # The ratio of the detecting solid angle / full soilid angle
+#         fl_sig_collecting_ratio = fl_sig_collecting_cap_area / (4*np.pi*r**2)  
+        fl_sig_collecting_ratio = ((np.pi * (det_size_cm/2)**2) / det_from_sample_cm**2)/(4*np.pi)
     
     P_save_path = os.path.join(P_folder, f_P)   
     P_handle = h5py.File(P_save_path + ".h5", 'r')
@@ -139,14 +142,12 @@ def generate_reconstructed_FL_signal(dev, selfAb,
             else:
                 P_minibatch = 0
                 n_det = 0
-
-            ## Load us_ic as the incoming probe count in this minibatch
-            probe_cts_minibatch = probe_cts[theta_idx, p * minibatch_size: (p+1) * minibatch_size] #dev         
+      
 
             model = PPM(dev, selfAb, lac, X, p, n_element, n_lines, FL_line_attCS_ls,
                          detected_fl_unit_concentration, n_line_group_each_element,
                          sample_height_n, minibatch_size, sample_size_n, sample_size_cm,
-                         probe_energy, probe_cts_minibatch, probe_attCS_ls,
+                         probe_energy, probe_cts, probe_attCS_ls,
                          theta, solid_angle_adjustment_factor,
                          n_det, P_minibatch, det_size_cm, det_from_sample_cm, fl_sig_collecting_ratio)
                    
