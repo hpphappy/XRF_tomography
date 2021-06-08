@@ -41,16 +41,23 @@ fl = {"K": np.array([xlib.KA1_LINE, xlib.KA2_LINE, xlib.KA3_LINE, xlib.KB1_LINE,
      }
 
 
-params_3d_test_sample8_64_64_64 = {'recon_idx': 0,
+params_3d_test_sample8_64_64_64 = {
                               'f_recon_parameters': 'recon_parameters.txt',  # The txt file that will save the reconstruction parameters
                               'dev': dev,
+                              'use_std_calibation': False,
+                              'probe_intensity': None,
+                              'std_path': None,
+                              'f_std': None,
+                              'std_element_lines_roi': None,
+                              'density_std_elements': None,  # unit in g/cm^2
+                              'fitting_method': None, # set to 'XRF_fits' , 'XRF_roi' or 'XRF_roi_plus'
                               'selfAb': True,
                               'cont_from_check_point': False,
                               'use_saved_initial_guess': False,
                               'ini_kind': 'const',  # choose from 'const', 'rand' or 'randn'
                               'init_const': 0.5,
                               'ini_rand_amp': 0.1,
-                              'recon_path': './data/sample_8_size_64_test_recon_b1_b2',
+                              'recon_path': './data/sample_8_size_64_test_recon_2',
                               'f_initial_guess': 'initialized_grid_concentration',
                               'f_recon_grid': 'grid_concentration',
                               'data_path': './data/sample_8_size_64_test',    # the folder where the data file is in
@@ -64,12 +71,12 @@ params_3d_test_sample8_64_64_64 = {'recon_idx': 0,
                               'this_aN_dic': {"Ca": 20, "Sc": 21},
                               'element_lines_roi': np.array([['Ca', 'K'], ['Ca', 'L'], ['Sc', 'K'], ['Sc', 'L']]),  # e.g. np.array([["Si", "K"], ["Ca", "K"]])
                               'n_line_group_each_element': np.array([2, 2]),
-                              'solid_angle_adjustment_factor': 1.0,  # because the detector is made up of 4 sensors with spacing in between(for 2-ID-E XRF), this factor is used to account for the loss of the total amount of photon counts
                               'sample_size_n': 64, 
                               'sample_height_n': 64,
                               'sample_size_cm': 0.01,                                    
                               'probe_energy': np.array([20.0]),                            
                               'n_epoch': 40,
+                              'save_every_n_epochs': 10,
                               'minibatch_size': 64,
                               'b1': 0.1,  # the regulizer coefficient of the XRT loss
                               'b2': 20000,
@@ -90,7 +97,7 @@ params_3d_test_sample8_64_64_64 = {'recon_idx': 0,
                              }
 
 
-params_3d_test_sample9_64_64_64 = {'recon_idx': 0,
+params_3d_test_sample9_64_64_64 = {
                               'f_recon_parameters': 'recon_parameters.txt',  # The txt file that will save the reconstruction parameters
                               'dev': dev,
                               'selfAb': True,
@@ -113,7 +120,6 @@ params_3d_test_sample9_64_64_64 = {'recon_idx': 0,
                               'this_aN_dic': {"Si": 14},
                               'element_lines_roi': np.array([['Si', 'K'], ['Si', 'L']]),  # e.g. np.array([["Si", "K"], ["Ca", "K"]])
                               'n_line_group_each_element': np.array([2]),
-                              'solid_angle_adjustment_factor': 1.0,  # because the detector is made up of 4 sensors with spacing in between(for 2-ID-E XRF), this factor is used to account for the loss of the total amount of photon counts
                               'sample_size_n': 64, 
                               'sample_height_n': 64,
                               'sample_size_cm': 0.01,                                    
@@ -138,7 +144,7 @@ params_3d_test_sample9_64_64_64 = {'recon_idx': 0,
                               'fl_M': fl["M"]  # doesn't need to change
                              }
 
-params_3d_44_44_20_xtal1 = {'recon_idx': 0,  # if start from the checkpoint, set this number to the checkpoint index you want to reconstruct from
+params_3d_44_44_20_xtal1 = {
                               'f_recon_parameters': 'recon_parameters.txt',  # The txt file that will save the reconstruction parameters
                               'dev': dev,
                               'use_std_calibation': True,
@@ -154,7 +160,7 @@ params_3d_44_44_20_xtal1 = {'recon_idx': 0,  # if start from the checkpoint, set
                               'ini_kind': 'const',  # choose from 'const', 'rand' or 'randn'
                               'init_const': 0.0,
                               'ini_rand_amp': 0.1,
-                              'recon_path': './data/Xtal1_align1_adjusted1_ds4_recon_test/Ab_T_nEl_4_Dis_2.0_nDpts_4_b1_1.0_b2_25000_lr_1.0E-5',
+                              'recon_path': './data/Xtal1_align1_adjusted1_ds4_recon_h5test/Ab_T_nEl_4_Dis_2.0_nDpts_4_b1_1.0_b2_25000_lr_1.0E-5',
                               'f_initial_guess': 'initialized_grid_concentration',
                               'f_recon_grid': 'grid_concentration',
                               'data_path': './data/Xtal1_align1_adjusted1_ds4',    # the folder where the data file is in
@@ -168,12 +174,11 @@ params_3d_44_44_20_xtal1 = {'recon_idx': 0,  # if start from the checkpoint, set
                               'this_aN_dic': {"Al": 13, "Si": 14, "Fe": 26, "Cu": 29},
                               'element_lines_roi': np.array([['Al', 'K'], ['Si', 'K'], ['Fe', 'K'], ['Cu', 'K']]),  # np.array([["Si, K"], ["Ca, K"]])
                               'n_line_group_each_element': np.array([1, 1, 1, 1]),
-                              'solid_angle_adjustment_factor': 1.0,  # because the detector is made up of 4 sensors with spacing in between(for 2-ID-E XRF), this factor is used to account for the loss of the total amount of photon counts
                               'sample_size_n': 44, 
                               'sample_height_n': 20,
                               'sample_size_cm': 0.007,                                    
                               'probe_energy': np.array([10.0]),                             
-                              'n_epoch': 10,
+                              'n_epoch': 20,
                               'save_every_n_epochs': 10,
                               'minibatch_size': 44,
                               'b1': 1.0,  # the regulizer coefficient of the XRT loss
@@ -195,7 +200,7 @@ params_3d_44_44_20_xtal1 = {'recon_idx': 0,  # if start from the checkpoint, set
                              }
 
 
-params_3d_44_44_20_xtal1_2 = {'recon_idx': 0,
+params_3d_44_44_20_xtal1_2 = {
                               'f_recon_parameters': 'recon_parameters.txt',  # The txt file that will save the reconstruction parameters
                               'dev': dev,
                               'selfAb': True,
@@ -218,7 +223,6 @@ params_3d_44_44_20_xtal1_2 = {'recon_idx': 0,
                               'this_aN_dic': {"Al": 13, "Si": 14, "Fe": 26, "Cu": 29},
                               'element_lines_roi': np.array([['Al', 'K'], ['Si', 'K'], ['Fe', 'K'], ['Cu', 'K']]),  # np.array([["Si, K"], ["Ca, K"]])
                               'n_line_group_each_element': np.array([1, 1, 1, 1]),
-                              'solid_angle_adjustment_factor': 1.0,  # because the detector is made up of 4 sensors with spacing in between(for 2-ID-E XRF), this factor is used to account for the loss of the total amount of photon counts
                               'sample_size_n': 44, 
                               'sample_height_n': 20,
                               'sample_size_cm': 0.007,                                    
@@ -246,7 +250,7 @@ params_3d_44_44_20_xtal1_2 = {'recon_idx': 0,
                               'fl_M': fl["M"]  # doesn't need to change
                              }
 
-params_3d_44_44_20_Al_xtal1 = {'recon_idx': 0,
+params_3d_44_44_20_Al_xtal1 = {
                               'f_recon_parameters': 'recon_parameters.txt',  # The txt file that will save the reconstruction parameters
                               'dev': dev,
                               'use_std_calibation': True,
@@ -276,7 +280,6 @@ params_3d_44_44_20_Al_xtal1 = {'recon_idx': 0,
                               'this_aN_dic': {"Al": 13},
                               'element_lines_roi': np.array([['Al', 'K']]),  # np.array([["Si, K"], ["Ca, K"]])
                               'n_line_group_each_element': np.array([1]),
-                              'solid_angle_adjustment_factor': 1.0,  # because the detector is made up of 4 sensors with spacing in between(for 2-ID-E XRF), this factor is used to account for the loss of the total amount of photon counts
                               'sample_size_n': 44, 
                               'sample_height_n': 20,
                               'sample_size_cm': 0.007,                                    
@@ -302,7 +305,7 @@ params_3d_44_44_20_Al_xtal1 = {'recon_idx': 0,
                               'fl_M': fl["M"]  # doesn't need to change
                              }
 
-params_3d_44_44_20_Si_xtal1 = {'recon_idx': 0,
+params_3d_44_44_20_Si_xtal1 = {
                               'f_recon_parameters': 'recon_parameters.txt',  # The txt file that will save the reconstruction parameters
                               'dev': dev,
                               'use_std_calibation': True,
@@ -332,7 +335,6 @@ params_3d_44_44_20_Si_xtal1 = {'recon_idx': 0,
                               'this_aN_dic': {"Si": 14},
                               'element_lines_roi': np.array([['Si', 'K']]),  # np.array([["Si, K"], ["Ca, K"]])
                               'n_line_group_each_element': np.array([1]),
-                              'solid_angle_adjustment_factor': 1.0,  # because the detector is made up of 4 sensors with spacing in between(for 2-ID-E XRF), this factor is used to account for the loss of the total amount of photon counts
                               'sample_size_n': 44, 
                               'sample_height_n': 20,
                               'sample_size_cm': 0.007,                                    
@@ -360,7 +362,7 @@ params_3d_44_44_20_Si_xtal1 = {'recon_idx': 0,
 
 
 
-params_3d_44_44_20_Fe_xtal1 = {'recon_idx': 0,
+params_3d_44_44_20_Fe_xtal1 = {
                               'f_recon_parameters': 'recon_parameters.txt',  # The txt file that will save the reconstruction parameters
                               'dev': dev,
                               'use_std_calibation': True,
@@ -390,7 +392,6 @@ params_3d_44_44_20_Fe_xtal1 = {'recon_idx': 0,
                               'this_aN_dic': {"Fe": 26},
                               'element_lines_roi': np.array([['Fe', 'K']]),  # np.array([["Si, K"], ["Ca, K"]])
                               'n_line_group_each_element': np.array([1]),
-                              'solid_angle_adjustment_factor': 1.0,  # because the detector is made up of 4 sensors with spacing in between(for 2-ID-E XRF), this factor is used to account for the loss of the total amount of photon counts
                               'sample_size_n': 44, 
                               'sample_height_n': 20,
                               'sample_size_cm': 0.007,                                    
@@ -417,7 +418,7 @@ params_3d_44_44_20_Fe_xtal1 = {'recon_idx': 0,
                              }
 
 
-params_3d_44_44_20_Cu_xtal1 = {'recon_idx': 0,
+params_3d_44_44_20_Cu_xtal1 = {
                               'f_recon_parameters': 'recon_parameters.txt',  # The txt file that will save the reconstruction parameters
                               'dev': dev,
                               'use_std_calibation': True,
@@ -447,7 +448,6 @@ params_3d_44_44_20_Cu_xtal1 = {'recon_idx': 0,
                               'this_aN_dic': {"Cu": 29},
                               'element_lines_roi': np.array([['Cu', 'K']]),  # np.array([["Si, K"], ["Ca, K"]])
                               'n_line_group_each_element': np.array([1]),
-                              'solid_angle_adjustment_factor': 1.0,  # because the detector is made up of 4 sensors with spacing in between(for 2-ID-E XRF), this factor is used to account for the loss of the total amount of photon counts
                               'sample_size_n': 44, 
                               'sample_height_n': 20,
                               'sample_size_cm': 0.007,                                    
@@ -476,7 +476,7 @@ params_3d_44_44_20_Cu_xtal1 = {'recon_idx': 0,
 
 
 
-params_3d_88_88_40_xtal1 = {'recon_idx': 0,
+params_3d_88_88_40_xtal1 = {
                               'f_recon_parameters': 'recon_parameters.txt',  # The txt file that will save the reconstruction parameters
                               'dev': dev,
                               'selfAb': True,
@@ -499,7 +499,6 @@ params_3d_88_88_40_xtal1 = {'recon_idx': 0,
                               'this_aN_dic': {"Al": 13, "Si": 14, "Fe": 26, "Cu": 29},
                               'element_lines_roi': np.array([['Al', 'K'], ['Si', 'K'], ['Fe', 'K'], ['Cu', 'K']]),  # np.array([["Si, K"], ["Ca, K"]])
                               'n_line_group_each_element': np.array([1, 1, 1, 1]),
-                              'solid_angle_adjustment_factor': 0.5,  # because the detector is made up of 4 sensors with spacing in between(for 2-ID-E XRF), this factor is used to account for the loss of the total amount of photon counts
                               'sample_size_n': 88, 
                               'sample_height_n': 40,
                               'sample_size_cm': 0.007,                                    
