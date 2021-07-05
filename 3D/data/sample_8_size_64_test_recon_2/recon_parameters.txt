@@ -1,0 +1,22 @@
+starting_epoch = 0
+n_epoch = 40
+n_ranks = 4
+element_line:
+[['Ca' 'K']
+ ['Ca' 'L']
+ ['Sc' 'K']
+ ['Sc' 'L']]
+b1 = 0.000015600
+b2 = 1.000000000
+learning rate = 0.001000
+theta_st = -0.00
+theta_end = -6.25
+n_theta = 200
+sample_size_n = 64
+sample_height_n = 64
+sample_size_cm = 0.01
+probe_energy_keV = 20.00
+max_incident_probe_cts = 1.00e+07
+det_size_cm = 0.90
+det_from_sample_cm = 1.60
+det_ds_spacing_cm = 0.40
