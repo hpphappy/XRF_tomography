@@ -1215,7 +1215,7 @@ def intersecting_length_fl_detectorlet_3d_mpi_write_h5_3_manual(n_ranks, minibat
     n_batch = (sample_height_n * sample_size_n) // (n_ranks * minibatch_size)
     
     f = h5py.File(P_save_path +'.h5', 'w', driver='mpio', comm=comm)
-    P = f.create_dataset('P_array', (n_det, 3, dia_len_n * sample_height_n * sample_size_n**2), dtype='f4', data=np.zeros((n_det, 3, dia_len_n * sample_height_n * sample_size_n**2)))
+    P = f.create_dataset('P_array', (n_det, 3, dia_len_n * sample_height_n * sample_size_n**2), dtype='f4')
     
     stdout_options = {'root':0, 'output_folder': './', 'save_stdout': False, 'print_terminal': True}
     for i,  det_pos in enumerate(det_pos_ls_flat):

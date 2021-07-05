@@ -255,10 +255,11 @@ def reconstruct_jXRFT_tomography(f_recon_parameters, dev, use_std_calibation, pr
                 # The updated X read by all ranks only at each new obj. angle
                 # because updating the remaining slices in the current obj. angle doesn't require the info of the updated slices.   
                 ## Calculate lac using the current X. lac (linear attenuation coefficient) has the dimension of [n_element, n_lines, n_voxel_minibatch, n_voxel]
-                if selfAb == True:
-                    with h5py.File(os.path.join(recon_path, f_recon_grid +'.h5'), "r") as s:
-                        X = s["sample/densities"][...].astype(np.float32)
-                    X = tc.from_numpy(X).to(dev) #dev                  
+                with h5py.File(os.path.join(recon_path, f_recon_grid +'.h5'), "r") as s:
+                    X = s["sample/densities"][...].astype(np.float32)
+                    X = tc.from_numpy(X).to(dev) #dev   
+                    
+                if selfAb == True:               
                     X_ap_rot = rotate(X, theta, dev) #dev
                     lac = X_ap_rot.view(n_element, 1, 1, n_voxel) * FL_line_attCS_ls.view(n_element, n_lines, 1, 1) #dev
                     lac = lac.expand(-1, -1, n_voxel_batch, -1).float() #dev
@@ -394,7 +395,9 @@ def reconstruct_jXRFT_tomography(f_recon_parameters, dev, use_std_calibation, pr
                 dxchange.write_tiff(X_cpu, os.path.join(recon_path, f_recon_grid)+"_"+str(epoch), dtype='float32', overwrite=True)            
 
         ## It's important to close the hdf5 file hadle in the end of the reconstruction.
-        P_handle.close()         
+        P_handle.close()
+        y1_true_handle.close()
+        y2_true_handle.close()
         comm.Barrier()
         
         if rank == 0:            

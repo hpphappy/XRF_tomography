@@ -70,6 +70,7 @@ class PPM(nn.Module):
         if self.selfAb == True:
             voxel_idx_offset = self.p * self.n_voxel_minibatch        
             
+            # clamp the index after substrcting the offset, so that all 0 indicies remains 0 (becomes negative if without clamping, and cause errors)
             att_exponent = tc.stack([self.lac[:,:, tc.clamp((self.P_minibatch[m,0] - voxel_idx_offset), 0, self.n_voxel_minibatch).to(dtype=tc.long), self.P_minibatch[m,1].to(dtype=tc.long)]
                                      * self.P_minibatch[m,2].repeat(self.n_element, self.n_lines, 1) for m in range(self.n_det)])
             

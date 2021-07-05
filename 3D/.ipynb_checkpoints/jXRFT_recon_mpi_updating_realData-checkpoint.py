@@ -20,8 +20,8 @@ warnings.filterwarnings("ignore")
 # Set the device
 #========================================================
 # stdout_options = {'output_folder': recon_path, 'save_stdout': False, 'print_terminal': True}
-# gpu_index = rank % 2
-gpu_index = 1
+gpu_index = rank % 2
+# gpu_index = 1
 if tc.cuda.is_available():  
     dev = tc.device('cuda:{}'.format(gpu_index))
     print("Process ", rank, "running on", dev)
@@ -154,13 +154,13 @@ params_3d_44_44_20_xtal1 = {
                               'std_element_lines_roi': np.array([['Ca', 'K'], ['Fe', 'K'], ['Cu', 'K']]),
                               'density_std_elements': np.array([1.931, 0.504, 0.284])*1.0E-6,  # unit in g/cm^2
                               'fitting_method':'XRF_roi_plus', # set to 'XRF_fits' , 'XRF_roi' or 'XRF_roi_plus'
-                              'selfAb': True,
+                              'selfAb': False,
                               'cont_from_check_point': False,
                               'use_saved_initial_guess': False,
                               'ini_kind': 'const',  # choose from 'const', 'rand' or 'randn'
                               'init_const': 0.0,
                               'ini_rand_amp': 0.1,
-                              'recon_path': './data/Xtal1_align1_adjusted1_ds4_recon_h5test/Ab_T_nEl_4_Dis_2.0_nDpts_4_b1_1.0_b2_25000_lr_1.0E-5',
+                              'recon_path': './data/Xtal1_align1_adjusted1_ds4_recon_h5test/Ab_F_nEl_4_Dis_2.0_nDpts_4_b1_1.0_b2_25000_lr_1.0E-5',
                               'f_initial_guess': 'initialized_grid_concentration',
                               'f_recon_grid': 'grid_concentration',
                               'data_path': './data/Xtal1_align1_adjusted1_ds4',    # the folder where the data file is in
@@ -178,20 +178,20 @@ params_3d_44_44_20_xtal1 = {
                               'sample_height_n': 20,
                               'sample_size_cm': 0.007,                                    
                               'probe_energy': np.array([10.0]),                             
-                              'n_epoch': 20,
+                              'n_epoch': 80,
                               'save_every_n_epochs': 10,
                               'minibatch_size': 44,
                               'b1': 1.0,  # the regulizer coefficient of the XRT loss
                               'b2': 25000.0,
                               'lr': 1.0E-5,                          
-                              'det_size_cm': None, # The estimated diameter of the sensor
-                              'det_from_sample_cm': None, # The estimated spacing between the sample and the detector
                               'manual_det_coord': True,
-                              'set_det_coord_cm': np.array([[0.70, -2.0, 0.70], [0.70, -2.0, -0.70], [-0.70, -2.0, 0.70], [-0.70, -2.0, -0.70]]),
-                              'det_on_which_side': "negative",                                 
-                              'manual_det_area': True,
-                              'set_det_area_cm2': 1.68,       
-                              'det_ds_spacing_cm': None, # Set this value to the value of det_size_cm divided by a number
+                              'set_det_coord_cm': np.array([[0.70, -2.0, 0.70], [0.70, -2.0, -0.70], [-0.70, -2.0, 0.70], [-0.70, -2.0, -0.70]]), #used when manual_det_coord is True
+                              'det_on_which_side': "negative", # used when manual_det_coord is False
+                              'det_from_sample_cm': None, # used when manual_det_coord is False. The estimated spacing between the sample and the detector
+                              'det_ds_spacing_cm': None, # used when manual_det_coord is False. Set this value to the value of det_size_cm divided by a number
+                              'manual_det_area': True, # Set to False when using simulation object and data with use_std_calibation is False
+                              'set_det_area_cm2': 1.68,
+                              'det_size_cm': None, # used when manual_det_area is False. The estimated diameter of the sensor,
                               'P_folder': 'data/P_array/sample_44_44_20_n/Dis_2.0_manual_dpts_4',              
                               'f_P': 'Intersecting_Length_44_44_20',  # The output file name has det_size_cm and det_ds_spacing_cm and det_from_sample_cm 
                               'fl_K': fl["K"], # doesn't need to change 
