@@ -70,7 +70,7 @@ def reconstruct_jXRFT_tomography(f_recon_parameters, dev, use_std_calibation, pr
     
     loss_fn = nn.MSELoss()
     dia_len_n = int(1.2 * (sample_height_n**2 + sample_size_n**2 + sample_size_n**2)**0.5) #dev
-    n_voxel_batch = minibatch_size * sample_size_n #dev
+    n_voxel_minibatch = minibatch_size * sample_size_n #dev
     n_voxel = sample_height_n * sample_size_n**2 #dev
     
     #### create the file handle for experimental data; y1: channel data, y2: scalers data ####
@@ -241,7 +241,7 @@ def reconstruct_jXRFT_tomography(f_recon_parameters, dev, use_std_calibation, pr
 
             comm.Barrier() 
             rand_idx = comm.bcast(rand_idx, root=0).to(dev) 
-            theta_ls_rand = comm.bcast(theta_ls_rand, root=0)   .to(dev)         
+            theta_ls_rand = comm.bcast(theta_ls_rand, root=0).to(dev)         
             comm.Barrier() 
             
             stdout_options = {'root':0, 'output_folder': recon_path, 'save_stdout': True, 'print_terminal': True}
@@ -253,7 +253,7 @@ def reconstruct_jXRFT_tomography(f_recon_parameters, dev, use_std_calibation, pr
                 this_theta_idx = rand_idx[idx] 
                                           
                 # The updated X read by all ranks only at each new obj. angle
-                # because updating the remaining slices in the current obj. angle doesn't require the info of the updated slices.   
+                # Because updating the remaining slices in the current obj. angle doesn't require the info of the previous updated slices.   
                 ## Calculate lac using the current X. lac (linear attenuation coefficient) has the dimension of [n_element, n_lines, n_voxel_minibatch, n_voxel]
                 with h5py.File(os.path.join(recon_path, f_recon_grid +'.h5'), "r") as s:
                     X = s["sample/densities"][...].astype(np.float32)
@@ -262,7 +262,7 @@ def reconstruct_jXRFT_tomography(f_recon_parameters, dev, use_std_calibation, pr
                 if selfAb == True:               
                     X_ap_rot = rotate(X, theta, dev) #dev
                     lac = X_ap_rot.view(n_element, 1, 1, n_voxel) * FL_line_attCS_ls.view(n_element, n_lines, 1, 1) #dev
-                    lac = lac.expand(-1, -1, n_voxel_batch, -1).float() #dev
+                    lac = lac.expand(-1, -1, n_voxel_minibatch, -1).float() #dev
                 
                 else:
                     lac = 0.
@@ -431,16 +431,17 @@ def reconstruct_jXRFT_tomography(f_recon_parameters, dev, use_std_calibation, pr
         comm.Barrier()
         
     if cont_from_check_point == True:
-        if rank == 0:
-            X = np.load(os.path.join(recon_path, f_recon_grid) + '.npy').astype(np.float32)
-            X = tc.from_numpy(X).float()
+        if rank == 0:           
+            with h5py.File(os.path.join(recon_path, f_recon_grid + ".h5"), "r") as s:
+                X = s["sample/densities"][...].astype(np.float32)
+                X = tc.from_numpy(X)
             
         else:
             X = None
         
-        # bcast X from rank0 cpu to other ranks cpu and then transfer to dev
-        comm.Barrier()
-        X = comm.bcast(X, root=0).to(dev)
+#         # bcast X from rank0 cpu to other ranks cpu and then transfer to dev
+#         comm.Barrier()
+#         X = comm.bcast(X, root=0).to(dev)
         
             
         if rank == 0:
@@ -459,7 +460,7 @@ def reconstruct_jXRFT_tomography(f_recon_parameters, dev, use_std_calibation, pr
                 n_ending = len(params_list)
 
             with open(os.path.join(recon_path, f_recon_parameters), "a") as recon_params:
-                n_start_last = n_ending - 22 + (4 - len(element_lines_roi))
+                n_start_last = n_ending - 15 - len(element_lines_roi)
 
                 previsous_starting_epoch = int(params_list[n_start_last][params_list[n_start_last].find("=")+1:])
                 previous_n_epoch = int(params_list[n_start_last+1][params_list[n_start_last+1].find("=")+1:])
@@ -500,7 +501,7 @@ def reconstruct_jXRFT_tomography(f_recon_parameters, dev, use_std_calibation, pr
 
             comm.Barrier() 
             rand_idx = comm.bcast(rand_idx, root=0).to(dev) 
-            theta_ls_rand = comm.bcast(theta_ls_rand, root=0)   .to(dev)         
+            theta_ls_rand = comm.bcast(theta_ls_rand, root=0).to(dev)         
             comm.Barrier()     
              
             
@@ -510,12 +511,19 @@ def reconstruct_jXRFT_tomography(f_recon_parameters, dev, use_std_calibation, pr
             
             for idx, theta in enumerate(theta_ls_rand):
                 this_theta_idx = rand_idx[idx]
-                
+
+                # The updated X read by all ranks only at each new obj. angle
+                # Because updating the remaining slices in the current obj. angle doesn't require the info of the previous updated slices.   
+                ## Calculate lac using the current X. lac (linear attenuation coefficient) has the dimension of [n_element, n_lines, n_voxel_minibatch, n_voxel]
+                with h5py.File(os.path.join(recon_path, f_recon_grid +'.h5'), "r") as s:
+                    X = s["sample/densities"][...].astype(np.float32)
+                    X = tc.from_numpy(X).to(dev) #dev
+                    
                 ## Calculate lac using the current X. lac (linear attenuation coefficient) has the dimension of [n_element, n_lines, n_voxel_minibatch, n_voxel]
                 if selfAb == True:
                     X_ap_rot = rotate(X, theta, dev) #dev
                     lac = X_ap_rot.view(n_element, 1, 1, n_voxel) * FL_line_attCS_ls.view(n_element, n_lines, 1, 1) #dev
-                    lac = lac.expand(-1, -1, n_voxel_batch, -1).float() #dev
+                    lac = lac.expand(-1, -1, n_voxel_minibatch, -1).float() #dev
                 
                 else:
                     lac = 0.
@@ -528,8 +536,14 @@ def reconstruct_jXRFT_tomography(f_recon_parameters, dev, use_std_calibation, pr
                 for m in range(n_batch):
                     minibatch_ls = n_ranks * m + minibatch_ls_0  #dev
                     p = minibatch_ls[rank]
-                    P_minibatch = tc.from_numpy(P_handle['P_array'][:,:, p * dia_len_n * minibatch_size * sample_size_n: (p+1) * dia_len_n * minibatch_size * sample_size_n]).to(dev)                                      
-                    n_det = P_minibatch.shape[0]  
+
+                    if selfAb == True:
+                        P_minibatch = tc.from_numpy(P_handle['P_array'][:,:, p * dia_len_n * minibatch_size * sample_size_n: (p+1) * dia_len_n * minibatch_size * sample_size_n]).to(dev)
+                        n_det = P_minibatch.shape[0] 
+                    
+                    else:
+                        P_minibatch = 0
+                        n_det = 0                    
                                        
                     model = PPM(dev, selfAb, lac, X, p, n_element, n_lines, FL_line_attCS_ls,
                                  detected_fl_unit_concentration, n_line_group_each_element,
@@ -552,13 +566,9 @@ def reconstruct_jXRFT_tomography(f_recon_parameters, dev, use_std_calibation, pr
                     optimizer.step()
                 
                     updated_minibatch = model.xp.detach().cpu()
+                    updated_minibatch = tc.clamp(updated_minibatch, 0, float('inf'))
                     comm.Barrier()
-                    updated_batch = comm.gather(updated_minibatch,root=0)
                     
-                    
-                    ## Note that the gathered updated_batch is a list of tensor, namely a list with n_ranks tensors. 
-                    ## E.g., if n_ranks=2, updated_batch = [tensor1, tensor2]
-                    ## tensor1 and tensor2 both have the dim = (n_element, sample_height_n (per minibatch), sample_size_n, sample_size_n)  
                 
                     XRF_loss = XRF_loss.detach().item() 
                     XRF_loss_sum = comm.reduce(XRF_loss, op=MPI.SUM, root=0)
@@ -570,35 +580,26 @@ def reconstruct_jXRFT_tomography(f_recon_parameters, dev, use_std_calibation, pr
                     loss_sum = comm.reduce(loss, op=MPI.SUM, root=0)
                     comm.Barrier()                  
                 
+                    with h5py.File(os.path.join(recon_path, f_recon_grid +'.h5'), 'r+', driver='mpio', comm=comm) as s:
+                        s["sample/densities"][:, minibatch_size * p // sample_size_n : minibatch_size * (p + 1) // sample_size_n, :, :] = updated_minibatch.numpy()
+                        
                     if rank == 0:
                         XRF_loss_n_batch[m] = XRF_loss_sum/n_ranks
                         XRT_loss_n_batch[m] = XRT_loss_sum/n_ranks
                         total_loss_n_batch[m] = loss_sum/n_ranks                        
-                        updated_batch = tc.cat(updated_batch, dim=1)
-                        X[:, minibatch_size * p // sample_size_n : minibatch_size * (p + n_ranks) // sample_size_n, :, :] = updated_batch.detach()
-                        X = tc.clamp(X, 0, float('inf'))
+                        
                         # Note that we need to detach the voxels in the updated_batch of the current iteration.
                         # Otherwise Pytorch will keep calculating the gradient of the updated_batch of the current iteration in the NEXT iteration
-                        # The updated X needs to be broadcasted back to all ranks only at each new obj. angle
-                        # because updating the remaining layers in the current obj. angle doesn't require the info of the updated layers.                                                             
+
                     del model 
                 ## Prepare to bcast the updated X from rank0 to all ranks in order to calculate the LAC at the next obj. angle                   
                 if rank == 0:  
                     loss_whole_obj_cont[n_theta * epoch + idx] = tc.mean(total_loss_n_batch)
                     XRF_loss_whole_obj_cont[n_theta * epoch + idx] = tc.mean(XRF_loss_n_batch)
                     XRT_loss_whole_obj_cont[n_theta * epoch + idx] = tc.mean(XRT_loss_n_batch)
-                    X_cpu = X.cpu()
-                else:
-                    X_cpu = None
+
                     
-                comm.Barrier()
-                X = comm.bcast(X_cpu, root=0).to(dev)
-                
-                # Save the current object to file                 
-                if rank == 0:                  
-                    np.save(os.path.join(recon_path, f_recon_grid)+'.npy', X_cpu.numpy())
-                comm.Barrier() 
-                    
+                comm.Barrier()                    
                 del lac
 #                 tc.cuda.empty_cache()
                 
@@ -608,14 +609,23 @@ def reconstruct_jXRFT_tomography(f_recon_parameters, dev, use_std_calibation, pr
             print_flush_root(rank, val=per_epoch_time, output_file=f'per_epoch_time_mb_size_{minibatch_size}.csv', **stdout_options)
             comm.Barrier()
 
+            if rank == 0:
+                with h5py.File(os.path.join(recon_path, f_recon_grid +'.h5'), "r") as s:
+                    X_cpu = s["sample/densities"][...].astype(np.float32)
+                    
             if rank ==0 and epoch != 0:
-                epsilon = tc.mean((X_cpu - X_previous)**2)
+                epsilon = np.mean((X_cpu - X_previous)**2)
                 print_flush_root(rank, val=epsilon, output_file=f'model_mse_epoch.csv', **stdout_options)
                 
                 if epsilon < 10**(-12):             
                     if rank == 0:
-                        np.save(os.path.join(recon_path, f_recon_grid)+"_"+str(epoch)+"_ending_condition"+".npy", X_cpu.numpy())
-                        dxchange.write_tiff(X_cpu.numpy(), os.path.join(recon_path, f_recon_grid)+"_"+str(epoch)+"_ending_condition", dtype='float32', overwrite=True)                     
+                        with h5py.File(os.path.join(recon_path, f_recon_grid +"_"+str(epoch)+"_ending_condition" +'.h5'), "w") as s:
+                            sample = s.create_group("sample")
+                            sample_v = sample.create_dataset("densities", shape=(n_element, sample_height_n, sample_size_n, sample_size_n), dtype="f4")
+                            sample_e = sample.create_dataset("elements", shape=(n_element,), dtype='S5')
+                            s["sample/densities"][...] = X_cpu
+                            s["sample/elements"][...] = np.array(list(this_aN_dic.keys())).astype('S5')
+                        dxchange.write_tiff(X_cpu, os.path.join(recon_path, f_recon_grid)+"_"+str(epoch)+"_ending_condition", dtype='float32', overwrite=True)                         
                     break
                 else:
                     pass
@@ -629,11 +639,18 @@ def reconstruct_jXRFT_tomography(f_recon_parameters, dev, use_std_calibation, pr
             comm.Barrier()            
             
             if  rank == 0 and ((epoch+1)%save_every_n_epochs == 0 and (epoch+1)//save_every_n_epochs !=0 or epoch+1 == n_epoch):
-                np.save(os.path.join(recon_path, f_recon_grid)+"_"+str(starting_epoch+epoch)+".npy", X_cpu.numpy())
-                dxchange.write_tiff(X_cpu.numpy(), os.path.join(recon_path, f_recon_grid)+"_"+str(starting_epoch+epoch), dtype='float32', overwrite=True)    
+                with h5py.File(os.path.join(recon_path, f_recon_grid +"_"+str(epoch) +'.h5'), "w") as s:
+                    sample = s.create_group("sample")
+                    sample_v = sample.create_dataset("densities", shape=(n_element, sample_height_n, sample_size_n, sample_size_n), dtype="f4")
+                    sample_e = sample.create_dataset("elements", shape=(n_element,), dtype='S5')
+                    s["sample/densities"][...] = X_cpu
+                    s["sample/elements"][...] = np.array(list(this_aN_dic.keys())).astype('S5')
+                dxchange.write_tiff(X_cpu, os.path.join(recon_path, f_recon_grid)+"_"+str(epoch), dtype='float32', overwrite=True)     
             
         ## It's important to close the hdf5 file hadle in the end of the reconstruction.
         P_handle.close()  
+        y1_true_handle.close()
+        y2_true_handle.close()
         comm.Barrier()
         
         if rank == 0:                           

@@ -155,12 +155,12 @@ params_3d_44_44_20_xtal1 = {
                               'density_std_elements': np.array([1.931, 0.504, 0.284])*1.0E-6,  # unit in g/cm^2
                               'fitting_method':'XRF_roi_plus', # set to 'XRF_fits' , 'XRF_roi' or 'XRF_roi_plus'
                               'selfAb': False,
-                              'cont_from_check_point': False,
+                              'cont_from_check_point': True,
                               'use_saved_initial_guess': False,
                               'ini_kind': 'const',  # choose from 'const', 'rand' or 'randn'
                               'init_const': 0.0,
                               'ini_rand_amp': 0.1,
-                              'recon_path': './data/Xtal1_align1_adjusted1_ds4_recon_h5test/Ab_F_nEl_4_Dis_2.0_nDpts_4_b1_1.0_b2_25000_lr_1.0E-5',
+                              'recon_path': './data/Xtal1_align1_adjusted1_ds4_recon_h5test/Ab_F_nEl_4_Dis_2.0_nDpts_4_b1_1.0_b2_25000_lr_1.0E-5_test',
                               'f_initial_guess': 'initialized_grid_concentration',
                               'f_recon_grid': 'grid_concentration',
                               'data_path': './data/Xtal1_align1_adjusted1_ds4',    # the folder where the data file is in
@@ -178,7 +178,7 @@ params_3d_44_44_20_xtal1 = {
                               'sample_height_n': 20,
                               'sample_size_cm': 0.007,                                    
                               'probe_energy': np.array([10.0]),                             
-                              'n_epoch': 80,
+                              'n_epoch': 40,
                               'save_every_n_epochs': 10,
                               'minibatch_size': 44,
                               'b1': 1.0,  # the regulizer coefficient of the XRT loss
