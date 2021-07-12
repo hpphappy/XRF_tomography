@@ -5,7 +5,7 @@ Created on Fri Nov 20 15:58:57 2020
 
 @author: panpanhuang
 """
-
+import nvtx
 import os
 import shutil
 import sys
@@ -229,8 +229,10 @@ def reconstruct_jXRFT_tomography(f_recon_parameters, dev, use_std_calibation, pr
                     recon_params.write("det_from_sample_cm = %.2f\n" %det_from_sample_cm)
                     recon_params.write("det_ds_spacing_cm = %.2f\n" %det_ds_spacing_cm)
         comm.Barrier()          
-                    
+        
+        tc.cuda.cudart().cudaProfilerStart()
         for epoch in range(n_epoch):
+            tc.cuda.nvtx.range_push("epoch{}".format(epoch))
             t0_epoch = time.perf_counter()
             if rank == 0:
                 rand_idx = tc.randperm(n_theta)
@@ -248,8 +250,8 @@ def reconstruct_jXRFT_tomography(f_recon_parameters, dev, use_std_calibation, pr
             timestr = str(datetime.datetime.today())     
             print_flush_root(rank, val=f"epoch: {epoch}, time: {timestr}", output_file='', **stdout_options)
  
-            
             for idx, theta in enumerate(theta_ls_rand):
+                tc.cuda.nvtx.range_push("theta{}".format(idx))
                 this_theta_idx = rand_idx[idx] 
                                           
                 # The updated X read by all ranks only at each new obj. angle
@@ -292,26 +294,36 @@ def reconstruct_jXRFT_tomography(f_recon_parameters, dev, use_std_calibation, pr
 #                     print_flush_root(rank, val=minibatch_ls, output_file='minibatch_ls.csv', **stdout_options)
                     
                     ## Load us_ic as the incoming probe count in this minibatch       
-            
+                    tc.cuda.nvtx.range_push("Create the forward model instance")
                     model = PPM(dev, selfAb, lac, X, p, n_element, n_lines, FL_line_attCS_ls,
                                  detected_fl_unit_concentration, n_line_group_each_element,
                                  sample_height_n, minibatch_size, sample_size_n, sample_size_cm,
                                  probe_energy, probe_cts, probe_attCS_ls,
                                  theta, solid_angle_adjustment_factor,
                                  n_det, P_minibatch, det_size_cm, det_from_sample_cm, fl_sig_collecting_ratio)
+                    tc.cuda.nvtx.range_pop() #pop create forward model instance
                     
                     optimizer = tc.optim.Adam(model.parameters(), lr=lr)              
                                     
                     ## load true data, y1: XRF_data, y2: XRT data
-                    #dev #Take all lines_roi, this_theta_idx, and strips in this minibatc                    
+                    #dev #Take all lines_roi, this_theta_idx, and strips in this minibatc
+                    tc.cuda.nvtx.range_push("Forward")
                     y1_hat, y2_hat = model()
+                    tc.cuda.nvtx.range_pop() #pop forward
+                    
                     XRF_loss = loss_fn(y1_hat, y1_true[:, this_theta_idx, minibatch_size * p : minibatch_size * (p+1)])
                     XRT_loss = loss_fn(y2_hat, b2 * y2_true[this_theta_idx, minibatch_size * p : minibatch_size * (p+1)])
                     loss = XRF_loss + b1 * XRT_loss
 
                     optimizer.zero_grad()
-                    loss.backward()                    
+                    
+                    tc.cuda.nvtx.range_push("Backward")
+                    loss.backward()
+                    tc.cuda.nvtx.range_pop() #pop backward
+                    
+                    tc.cuda.nvtx.range_push("Update parameters")
                     optimizer.step()
+                    tc.cuda.nvtx.range_pop() #pop update parameters
                          
                     updated_minibatch = model.xp.detach().cpu()
                     updated_minibatch = tc.clamp(updated_minibatch, 0, float('inf'))
@@ -339,6 +351,7 @@ def reconstruct_jXRFT_tomography(f_recon_parameters, dev, use_std_calibation, pr
                
                     del model  
                 
+                tc.cuda.nvtx.range_pop()  # pop theta 
                 ## Prepare to bcast the updated X from rank0 to all ranks in order to calculate the LAC at the next obj. angle  
                 if rank == 0:
                     loss_whole_obj[n_theta * epoch + idx] = tc.mean(total_loss_n_batch)
@@ -392,7 +405,11 @@ def reconstruct_jXRFT_tomography(f_recon_parameters, dev, use_std_calibation, pr
                     sample_e = sample.create_dataset("elements", shape=(n_element,), dtype='S5')
                     s["sample/densities"][...] = X_cpu
                     s["sample/elements"][...] = np.array(list(this_aN_dic.keys())).astype('S5')
-                dxchange.write_tiff(X_cpu, os.path.join(recon_path, f_recon_grid)+"_"+str(epoch), dtype='float32', overwrite=True)            
+                dxchange.write_tiff(X_cpu, os.path.join(recon_path, f_recon_grid)+"_"+str(epoch), dtype='float32', overwrite=True)  
+                
+            tc.cuda.nvtx.range_pop() #pop epoch
+            
+        torch.cuda.cudart().cudaProfilerStop()
 
         ## It's important to close the hdf5 file hadle in the end of the reconstruction.
         P_handle.close()
