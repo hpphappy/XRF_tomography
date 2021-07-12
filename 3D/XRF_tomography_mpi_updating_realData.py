@@ -5,7 +5,7 @@ Created on Fri Nov 20 15:58:57 2020
 
 @author: panpanhuang
 """
-
+import nvtx
 import os
 import shutil
 import sys
@@ -229,8 +229,10 @@ def reconstruct_jXRFT_tomography(f_recon_parameters, dev, use_std_calibation, pr
                     recon_params.write("det_from_sample_cm = %.2f\n" %det_from_sample_cm)
                     recon_params.write("det_ds_spacing_cm = %.2f\n" %det_ds_spacing_cm)
         comm.Barrier()          
-                    
+        
+        tc.cuda.cudart().cudaProfilerStart()
         for epoch in range(n_epoch):
+            tc.cuda.nvtx.range_push("epoch{}".format(epoch))
             t0_epoch = time.perf_counter()
             if rank == 0:
                 rand_idx = tc.randperm(n_theta)
