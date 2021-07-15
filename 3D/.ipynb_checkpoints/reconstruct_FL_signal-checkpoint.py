@@ -412,7 +412,7 @@ params_sample_size_64 = {'dev': "cpu",
                                      'std_element_lines_roi': np.array([['Ca', 'K'], ['Fe', 'K'], ['Cu', 'K']]),  #used only when use_simulation_sample is True  
                                      'density_std_elements': np.array([1.931, 0.504, 0.284])*1.0E-6,  # unit in g/cm^2,  #used only when use_simulation_sample is True 
                                      'selfAb': True,
-                                     'recon_path':"./data/size_64",
+                                     'recon_path':"./data/size_64/n_element_2",
                                      'f_recon_grid': "density_n_element_2",
                                      'f_reconstructed_XRF_signal':"simulation_XRF_data",
                                      'f_reconstructed_XRT_signal':"simulation_XRT_data",
@@ -496,7 +496,7 @@ params_sample_size_256 = {'dev': "cpu",
                                      'std_element_lines_roi': np.array([['Ca', 'K'], ['Fe', 'K'], ['Cu', 'K']]),  #used only when use_simulation_sample is True  
                                      'density_std_elements': np.array([1.931, 0.504, 0.284])*1.0E-6,  # unit in g/cm^2,  #used only when use_simulation_sample is True 
                                      'selfAb': True,
-                                     'recon_path':"./data/size_128",
+                                     'recon_path':"./data/size_256",
                                      'f_recon_grid': "density_n_element_2",
                                      'f_reconstructed_XRF_signal':"simulation_XRF_data",
                                      'f_reconstructed_XRT_signal':"simulation_XRT_data",
@@ -530,7 +530,7 @@ params_sample_size_256 = {'dev': "cpu",
                                     }
 
 
-params = params_sample_size_32
+params = params_sample_size_64
 
 if __name__ == "__main__": 
     

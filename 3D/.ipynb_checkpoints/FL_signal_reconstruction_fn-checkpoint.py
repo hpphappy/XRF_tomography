@@ -47,8 +47,6 @@ def generate_reconstructed_FL_signal(dev, use_simulation_sample, simulation_prob
     n_voxel_batch = minibatch_size * sample_size_n #dev
     n_voxel = sample_height_n * sample_size_n**2 #dev
 
-    #### create the file handle for experimental data; y1: channel data, y2: scalers data ####
-    y2_true_handle = h5py.File(os.path.join(data_path, f_XRT_data), 'r')  
     ####----------------------------------------------------------------------------------####    
     
     #### Calculate the number of elements in the reconstructed object, list the atomic numbers ####
@@ -81,12 +79,14 @@ def generate_reconstructed_FL_signal(dev, use_simulation_sample, simulation_prob
         probe_cts = simulation_probe_cts
         
     else:
+        y2_true_handle = h5py.File(os.path.join(data_path, f_XRT_data), 'r')  
         #### Load all object angles from the experimental data ####
         theta_ls = tc.from_numpy(y2_true_handle['exchange/theta'][...] * np.pi / 180).float()  #unit: rad #cpu
         n_theta = len(theta_ls) 
         #### Calculate the incident photon counts from the calibration data
         probe_cts = calibrate_incident_probe_intensity(std_path, f_std, fitting_method, std_element_lines_roi, density_std_elements, probe_energy) 
-    
+        y2_true_handle.close()
+        
     minibatch_ls_0 = tc.arange(n_ranks).to(dev) #dev
     n_batch = (sample_height_n * sample_size_n) // (n_ranks * minibatch_size) #scalar
      
@@ -130,13 +130,13 @@ def generate_reconstructed_FL_signal(dev, use_simulation_sample, simulation_prob
             grp = d.create_group("exchange")
             data = grp.create_dataset("data", shape=(n_lines, n_theta, sample_height_n, sample_size_n), dtype="f4")
             elements = grp.create_dataset("elements", data = channel_name_roi_ls)
-            theta = grp.create_dataset("theta", data = y2_true_handle['exchange/theta'][...])
+            theta = grp.create_dataset("theta", data = theta_ls)
 
         with h5py.File(os.path.join(recon_path, f_reconstructed_XRT_signal +'.h5'), 'w') as d:
             grp = d.create_group("exchange")
             data = grp.create_dataset("data", shape=(4, n_theta, sample_height_n, sample_size_n), dtype="f4")
             elements = grp.create_dataset("elements", data = scaler_names)
-            theta = grp.create_dataset("theta", data = y2_true_handle['exchange/theta'][...])
+            theta = grp.create_dataset("theta", data = theta_ls)
             
         with h5py.File(os.path.join(recon_path, f_reconstructed_XRT_signal +'.h5'), 'r+') as d:
             d["exchange/data"][0,:,:,:] = 0
@@ -213,4 +213,3 @@ def generate_reconstructed_FL_signal(dev, use_simulation_sample, simulation_prob
                               
     ## It's important to close the hdf5 file hadle in the end of the reconstruction.
     P_handle.close()       
-    y2_true_handle.close()
