@@ -1199,7 +1199,6 @@ def intersecting_length_fl_detectorlet_3d_mpi_write_h5_3_manual(n_ranks, minibat
     n_det = len(det_pos_ls_flat)
     
     if rank == 0:
-        print(det_pos_ls_flat.shape)
         print(f"numbder of detecting points: {n_det}")
         sys.stdout.flush()
         

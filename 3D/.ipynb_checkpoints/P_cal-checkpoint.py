@@ -33,7 +33,7 @@ params_1 = {"n_ranks": n_ranks,
           "set_det_coord_cm":np.array([[0.8, -2.0, 0.8], [0.8, -2.0, 0.6], [0.6, -2.0, 0.6], [0.60, -2.0, 0.8],
                                        [0.8, -2.0, -0.6], [0.8, -2.0, -0.8], [0.6, -2.0, -0.8], [0.6, -2.0, -0.6],
                                        [-0.6, -2.0, -0.6], [-0.6, -2.0, -0.8], [-0.8, -2.0, -0.8], [-0.8, -2.0, -0.6],                                       
-                                       [-0.6, -2.0, 0.8], [-0.6, -2.0, 0.6], [-0.8, -2.0, 0.6], [-0.8, -2.0, 0.8]]),      
+                                       [-0.6, -2.0, 0.8], [-0.6, -2.0, 0.6], [-0.8, -2.0, 0.6], [-0.8, -2.0, 0.8]]),
           "det_on_which_side": "negative",
           "manual_det_area": True,
           "det_size_cm": None,
@@ -61,7 +61,7 @@ params_32 = {"n_ranks": n_ranks,
           "sample_size_n": 32,
           "sample_size_cm": 0.01,
           'sample_height_n': 32,
-          "P_folder": './data/P_array/sample_32_32_32_detSpacing_0.4_dpts_5',
+          "P_folder": './data/P_array/sample_32_32_32/detSpacing_0.4_dpts_5',
           'f_P': 'Intersecting_Length_32_32_32'
 }     
     

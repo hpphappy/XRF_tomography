@@ -184,7 +184,7 @@ def generate_reconstructed_FL_signal(dev, use_simulation_sample, simulation_prob
                          n_det, P_minibatch, det_size_cm, det_from_sample_cm, fl_sig_collecting_ratio)
             
             y1_hat, y2_hat = model() #y1_hat dimension: (n_lines, minibatch_size); y2_hat dimension: (minibatch_size,)
-            
+            y2_hat = np.exp(- y2_hat.detach().numpy())
             
             #### Use mpi to write the generated dataset to the hdf5 file
             with h5py.File(os.path.join(recon_path, f_reconstructed_XRF_signal +'.h5'), 'r+', driver='mpio', comm=comm) as d:
@@ -196,7 +196,7 @@ def generate_reconstructed_FL_signal(dev, use_simulation_sample, simulation_prob
             
             with h5py.File(os.path.join(recon_path, f_reconstructed_XRT_signal +'.h5'), 'r+', driver='mpio', comm=comm) as d:
                 d["exchange/data"][3, theta_idx, minibatch_size * p // sample_size_n: minibatch_size * (p + 1) // sample_size_n, :] = \
-                np.reshape(y2_hat.detach().numpy(), (minibatch_size // sample_size_n, -1))
+                np.reshape(y2_hat, (minibatch_size // sample_size_n, -1))
             
             comm.Barrier()
                 ## shape of d["exchange/data"] = (4, n_theta, sample_height_n, sample_size_n)
