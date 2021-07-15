@@ -155,7 +155,7 @@ params_3d_44_44_20_xtal1 = {
                               'density_std_elements': np.array([1.931, 0.504, 0.284])*1.0E-6,  # unit in g/cm^2
                               'fitting_method':'XRF_roi_plus', # set to 'XRF_fits' , 'XRF_roi' or 'XRF_roi_plus'
                               'selfAb': False,
-                              'cont_from_check_point': True,
+                              'cont_from_check_point': False,
                               'use_saved_initial_guess': False,
                               'ini_kind': 'const',  # choose from 'const', 'rand' or 'randn'
                               'init_const': 0.0,
@@ -178,7 +178,7 @@ params_3d_44_44_20_xtal1 = {
                               'sample_height_n': 20,
                               'sample_size_cm': 0.007,                                    
                               'probe_energy': np.array([10.0]),                             
-                              'n_epoch': 40,
+                              'n_epoch': 10,
                               'save_every_n_epochs': 10,
                               'minibatch_size': 44,
                               'b1': 1.0,  # the regulizer coefficient of the XRT loss

@@ -5,7 +5,6 @@ Created on Fri Nov 20 15:58:57 2020
 
 @author: panpanhuang
 """
-import nvtx
 import os
 import shutil
 import sys
@@ -409,7 +408,7 @@ def reconstruct_jXRFT_tomography(f_recon_parameters, dev, use_std_calibation, pr
                 
             tc.cuda.nvtx.range_pop() #pop epoch
             
-        torch.cuda.cudart().cudaProfilerStop()
+        tc.cuda.cudart().cudaProfilerStop()
 
         ## It's important to close the hdf5 file hadle in the end of the reconstruction.
         P_handle.close()
