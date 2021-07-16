@@ -460,7 +460,7 @@ params_sample_size_128 = {'dev': "cpu",
                                      'f_reconstructed_XRT_signal':"simulation_XRT_data",
                                      'theta_st': 0, #used only when generate_simulation_sample is True
                                      'theta_end': 360, #used only when generate_simulation_sample is True
-                                     'n_theta': 200, #used only when generate_simulation_sample is True                                        
+                                     'n_theta': 400, #used only when generate_simulation_sample is True                                        
                                      'data_path': None, #used only when generate_simulation_sample is False 
                                      'f_XRT_data': None, #used only when generate_simulation_sample is False 
                                      'this_aN_dic': {"Ca": 20, "Sc": 21}, 
@@ -470,7 +470,7 @@ params_sample_size_128 = {'dev': "cpu",
                                      'sample_height_n': 128,
                                      'sample_size_cm': 0.01,                                    
                                      'probe_energy': np.array([20.0]),                                       
-                                     'minibatch_size': 400,                                     
+                                     'minibatch_size': 128,                                     
                                      'manual_det_coord': False,
                                      'set_det_coord_cm': None,
                                      'det_on_which_side': "positive",
@@ -530,7 +530,7 @@ params_sample_size_256 = {'dev': "cpu",
                                     }
 
 
-params = params_sample_size_64
+params = params_sample_size_256
 
 if __name__ == "__main__": 
     
