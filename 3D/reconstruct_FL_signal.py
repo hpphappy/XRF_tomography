@@ -6,7 +6,7 @@ Created on Fri Nov 20 15:58:57 2020
 @author: panpanhuang
 """
 import os
-from FL_signal_reconstruction_fn import generate_reconstructed_FL_signal
+from FL_signal_reconstruction_fn_2 import generate_reconstructed_FL_signal
 import numpy as np
 from mpi4py import MPI
 import xraylib as xlib
@@ -41,6 +41,9 @@ params_3d_44_44_20_xtal1_roi_plus = {'dev': "cpu",
                                      'theta_st': 0, #used only when generate_simulation_sample is True
                                      'theta_end': 360, #used only when generate_simulation_sample is True
                                      'n_theta': 200, #used only when generate_simulation_sample is True
+                                     'cont_from_last_theta': False,
+                                     'this_theta_st_idx':0,
+                                     'this_theta_end_idx':110,
                                      'data_path': './data/Xtal1_align1_adjusted1_ds4',
                                      'f_XRT_data': 'xtal1_scalers',
                                      'this_aN_dic': {"Al": 13, "Si": 14, "Fe": 26, "Cu": 29}, 
@@ -82,7 +85,10 @@ params_3d_44_44_20_Al_xtal1_roi_plus = {'dev': "cpu",
                                      'f_reconstructed_XRT_signal':"reprojected_XRT_data",
                                      'theta_st': 0, #used only when generate_simulation_sample is True
                                      'theta_end': 360, #used only when generate_simulation_sample is True
-                                     'n_theta': 200, #used only when generate_simulation_sample is True                                        
+                                     'n_theta': 200, #used only when generate_simulation_sample is True  
+                                     'cont_from_last_theta': False,
+                                     'this_theta_st_idx':0,
+                                     'this_theta_end_idx':110,
                                      'data_path': './data/Xtal1_align1_adjusted3_ds4',
                                      'f_XRT_data': 'xtal1_scalers',
                                      'this_aN_dic': {"Al": 13}, 
@@ -124,7 +130,10 @@ params_3d_44_44_20_Si_xtal1_roi_plus = {'dev': "cpu",
                                      'f_reconstructed_XRT_signal':"reprojected_XRT_data",
                                      'theta_st': 0, #used only when generate_simulation_sample is True
                                      'theta_end': 360, #used only when generate_simulation_sample is True
-                                     'n_theta': 200, #used only when generate_simulation_sample is True                                             
+                                     'n_theta': 200, #used only when generate_simulation_sample is True   
+                                     'cont_from_last_theta': False,
+                                     'this_theta_st_idx':0,
+                                     'this_theta_end_idx':110,
                                      'data_path': './data/Xtal1_align1_adjusted3_ds4',
                                      'f_XRT_data': 'xtal1_scalers',
                                      'this_aN_dic': {"Si": 14}, 
@@ -166,9 +175,12 @@ params_3d_44_44_20_Fe_xtal1_roi_plus = {'dev': "cpu",
                                      'f_reconstructed_XRT_signal':"reprojected_XRT_data",
                                      'theta_st': 0, #used only when generate_simulation_sample is True
                                      'theta_end': 360, #used only when generate_simulation_sample is True
-                                     'n_theta': 200, #used only when generate_simulation_sample is True                                             
-                                     'data_path': './data/Xtal1_align1_adjusted3_ds4',
-                                     'f_XRT_data': 'xtal1_scalers',
+                                     'n_theta': 200, #used only when generate_simulation_sample is True  
+                                     'cont_from_last_theta': False,
+                                     'this_theta_st_idx':0,
+                                     'this_theta_end_idx':110,
+                                     'data_path': './data/Xtal1_align1_adjusted3_ds4', #used only when generate_simulation_sample is True  
+                                     'f_XRT_data': 'xtal1_scalers', #used only when generate_simulation_sample is True  
                                      'this_aN_dic': {"Fe": 26}, 
                                      'element_lines_roi': np.array([['Fe', 'K']]),
                                      'n_line_group_each_element': np.array([1]),
@@ -208,7 +220,10 @@ params_3d_44_44_20_Cu_xtal1_roi_plus = {'dev': "cpu",
                                      'f_reconstructed_XRT_signal':"reprojected_XRT_data",
                                      'theta_st': 0, #used only when generate_simulation_sample is True
                                      'theta_end': 360, #used only when generate_simulation_sample is True
-                                     'n_theta': 200, #used only when generate_simulation_sample is True                                             
+                                     'n_theta': 200, #used only when generate_simulation_sample is True  
+                                     'cont_from_last_theta': False,
+                                     'this_theta_st_idx':0,
+                                     'this_theta_end_idx':110,
                                      'data_path': './data/Xtal1_align1_adjusted3_ds4',
                                      'f_XRT_data': 'xtal1_scalers',
                                      'this_aN_dic': {"Cu": 29}, 
@@ -250,9 +265,12 @@ params_3d_test_sample8_64_64_64 = {'dev': "cpu",
                                      'f_reconstructed_XRT_signal':"reprojected_XRT_data",
                                      'theta_st': 0, #used only when generate_simulation_sample is True
                                      'theta_end': 360, #used only when generate_simulation_sample is True
-                                     'n_theta': 200, #used only when generate_simulation_sample is True                                        
-                                     'data_path': './data/sample_8_size_64_test',
-                                     'f_XRT_data': 'test8_xrt',
+                                     'n_theta': 200, #used only when generate_simulation_sample is True  
+                                     'cont_from_last_theta': False,
+                                     'this_theta_st_idx':0,
+                                     'this_theta_end_idx':200,
+                                     'data_path': './data/sample_8_size_64_test', #used only when generate_simulation_sample is True  
+                                     'f_XRT_data': 'test8_xrt', #used only when generate_simulation_sample is True  
                                      'this_aN_dic': {"Ca": 20, "Sc": 21}, 
                                      'element_lines_roi': np.array([['Ca', 'K'], ['Ca', 'L'], ['Sc', 'K'], ['Sc', 'L']]),
                                      'n_line_group_each_element': np.array([2, 2]),
@@ -292,9 +310,12 @@ params_3d_test_sample9_64_64_64 = {'dev': "cpu",
                                      'f_reconstructed_XRT_signal':"reprojected_XRT_data",
                                      'theta_st': 0, #used only when generate_simulation_sample is True
                                      'theta_end': 360, #used only when generate_simulation_sample is True
-                                     'n_theta': 200, #used only when generate_simulation_sample is True                                        
-                                     'data_path': './data/sample_9_size_64_data/nElements_1',
-                                     'abs_ic_dataset_idx': 3,
+                                     'n_theta': 200, #used only when generate_simulation_sample is True 
+                                     'cont_from_last_theta': False,
+                                     'this_theta_st_idx':0,
+                                     'this_theta_end_idx':200,
+                                     'data_path': './data/sample_9_size_64_data/nElements_1', #used only when generate_simulation_sample is False 
+                                     'abs_ic_dataset_idx': 3, #used only when generate_simulation_sample is False 
                                      'this_aN_dic': {"Si": 14}, 
                                      'element_lines_roi': np.array([['Si', 'K'], ['Si', 'L']]),
                                      'n_line_group_each_element': np.array([2]),
@@ -334,9 +355,12 @@ params_3d_test_sample9_64_64_64 = {'dev': "cpu",
                                      'f_reconstructed_XRT_signal':"reprojected_XRT_data",
                                      'theta_st': 0, #used only when generate_simulation_sample is True
                                      'theta_end': 360, #used only when generate_simulation_sample is True
-                                     'n_theta': 200, #used only when generate_simulation_sample is True                                        
-                                     'data_path': './data/sample_9_size_64_data/nElements_1',
-                                     'f_XRT_data': 'test9_xrt',
+                                     'n_theta': 200, #used only when generate_simulation_sample is True    
+                                     'cont_from_last_theta': False,
+                                     'this_theta_st_idx':0,
+                                     'this_theta_end_idx':200,
+                                     'data_path': './data/sample_9_size_64_data/nElements_1', #used only when generate_simulation_sample is False 
+                                     'f_XRT_data': 'test9_xrt', #used only when generate_simulation_sample is False 
                                      'this_aN_dic': {"Si": 14}, 
                                      'element_lines_roi': np.array([['Si', 'K'], ['Si', 'L']]),
                                      'n_line_group_each_element': np.array([2]),
@@ -372,11 +396,14 @@ params_sample_size_32 = {'dev': "cpu",
                                      'selfAb': True,
                                      'recon_path':"./data/size_32",
                                      'f_recon_grid': "density_n_element_2",
-                                     'f_reconstructed_XRF_signal':"simulation_XRF_data",
-                                     'f_reconstructed_XRT_signal':"simulation_XRT_data",
+                                     'f_reconstructed_XRF_signal':"simulation_XRF_data_test",
+                                     'f_reconstructed_XRT_signal':"simulation_XRT_data_test",
                                      'theta_st': 0, #used only when generate_simulation_sample is True
                                      'theta_end': 360, #used only when generate_simulation_sample is True
-                                     'n_theta': 100, #used only when generate_simulation_sample is True                                        
+                                     'n_theta': 100, #used only when generate_simulation_sample is True    
+                                     'cont_from_last_theta': True,
+                                     'this_theta_st_idx':50,
+                                     'this_theta_end_idx':100,
                                      'data_path': None, #used only when generate_simulation_sample is False 
                                      'f_XRT_data': None, #used only when generate_simulation_sample is False 
                                      'this_aN_dic': {"Ca": 20, "Sc": 21}, 
@@ -418,7 +445,10 @@ params_sample_size_64 = {'dev': "cpu",
                                      'f_reconstructed_XRT_signal':"simulation_XRT_data",
                                      'theta_st': 0, #used only when generate_simulation_sample is True
                                      'theta_end': 360, #used only when generate_simulation_sample is True
-                                     'n_theta': 200, #used only when generate_simulation_sample is True                                        
+                                     'n_theta': 200, #used only when generate_simulation_sample is True 
+                                     'cont_from_last_theta': False,
+                                     'this_theta_st_idx':0,
+                                     'this_theta_end_idx':200,
                                      'data_path': None, #used only when generate_simulation_sample is False 
                                      'f_XRT_data': None, #used only when generate_simulation_sample is False 
                                      'this_aN_dic': {"Ca": 20, "Sc": 21}, 
@@ -460,7 +490,10 @@ params_sample_size_128 = {'dev': "cpu",
                                      'f_reconstructed_XRT_signal':"simulation_XRT_data",
                                      'theta_st': 0, #used only when generate_simulation_sample is True
                                      'theta_end': 360, #used only when generate_simulation_sample is True
-                                     'n_theta': 400, #used only when generate_simulation_sample is True                                        
+                                     'n_theta': 400, #used only when generate_simulation_sample is True 
+                                     'cont_from_last_theta': False,
+                                     'this_theta_st_idx':0,
+                                     'this_theta_end_idx':400,
                                      'data_path': None, #used only when generate_simulation_sample is False 
                                      'f_XRT_data': None, #used only when generate_simulation_sample is False 
                                      'this_aN_dic': {"Ca": 20, "Sc": 21}, 
@@ -502,7 +535,10 @@ params_sample_size_256 = {'dev': "cpu",
                                      'f_reconstructed_XRT_signal':"simulation_XRT_data",
                                      'theta_st': 0, #used only when generate_simulation_sample is True
                                      'theta_end': 360, #used only when generate_simulation_sample is True
-                                     'n_theta': 800, #used only when generate_simulation_sample is True                                        
+                                     'n_theta': 800, #used only when generate_simulation_sample is True
+                                     'cont_from_last_theta': False,
+                                     'this_theta_st_idx':0,
+                                     'this_theta_end_idx':8,
                                      'data_path': None, #used only when generate_simulation_sample is False 
                                      'f_XRT_data': None, #used only when generate_simulation_sample is False 
                                      'this_aN_dic': {"Ca": 20, "Sc": 21}, 
