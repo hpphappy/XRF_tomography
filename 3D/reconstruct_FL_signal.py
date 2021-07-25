@@ -536,9 +536,9 @@ params_sample_size_256 = {'dev': "cpu",
                                      'theta_st': 0, #used only when generate_simulation_sample is True
                                      'theta_end': 360, #used only when generate_simulation_sample is True
                                      'n_theta': 800, #used only when generate_simulation_sample is True
-                                     'cont_from_last_theta': False,
-                                     'this_theta_st_idx':0,
-                                     'this_theta_end_idx':8,
+                                     'cont_from_last_theta': True,
+                                     'this_theta_st_idx':609,
+                                     'this_theta_end_idx':800,
                                      'data_path': None, #used only when generate_simulation_sample is False 
                                      'f_XRT_data': None, #used only when generate_simulation_sample is False 
                                      'this_aN_dic': {"Ca": 20, "Sc": 21}, 
