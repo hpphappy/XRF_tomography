@@ -1,11 +1,11 @@
-import python
+import numpy as np
 import h5py
 import os
 
 # experiemtal parameters #
 theta_st = 0
 theta_end = 360
-n_theta =  tc.tensor(800).to(dev)
+n_theta = 800
 sample_size_n = 256
 sample_height_n = 256
 sample_size_cm = 0.01
