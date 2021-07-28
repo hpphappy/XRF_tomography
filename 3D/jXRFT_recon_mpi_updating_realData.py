@@ -581,7 +581,7 @@ params_3d_88_88_40_xtal1 = {
                               'fl_M': fl["M"]  # doesn't need to change
                              }
 
-params = params_3d_size_64
+params = params_3d_44_44_20_xtal1
 
 if __name__ == "__main__": 
     
