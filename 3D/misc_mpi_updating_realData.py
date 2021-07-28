@@ -7,27 +7,28 @@ comm = MPI.COMM_WORLD
 n_ranks = comm.Get_size()
 rank = comm.Get_rank()
 
-def print_flush(val, output_file='', output_folder='./', save_stdout=True, print_terminal=False):
-    # I want the file name to be the name of the quantity, the val is the value of the quantity
-    if print_terminal:
-        print(val)
+# def print_flush(val, output_file='', output_folder='./', save_stdout=True, print_terminal=False):
+#     # I want the file name to be the name of the quantity, the val is the value of the quantity
+#     if print_terminal:
+#         print(val)
         
-    if save_stdout:   
-        if not os.path.exists(output_folder):
-            os.mkdir(output_folder)   
+#     if save_stdout:   
+#         if not os.path.exists(output_folder):
+#             os.mkdir(output_folder)   
 
-        if not output_file:
-            output_file = "stdo.csv"
+#         if not output_file:
+#             output_file = "stdo.csv"
 
-        file_path = os.path.join(output_folder, output_file)
-        with open(file_path, 'a') as f:
-            writer = csv.writer(f, delimiter=',')
-            writer.writerow([val])
+#         file_path = os.path.join(output_folder, output_file)
+#         with open(file_path, 'a') as f:
+#             writer = csv.writer(f, delimiter=',')
+#             writer.writerow([val])
      
-    return None
+#     return None
 
 def print_flush_root(this_rank, val, output_file='', root=0, output_folder='./', save_stdout=True, print_terminal=False):
-    # I want the file name to be the name of the quantity, the val is the value of the quantity
+    # print(or not) the argument, val, for all ranks.
+    # save(or not) the argument, val, if the current rank is the root rank
     if print_terminal:
         print("rank:", this_rank, val)
         
@@ -47,7 +48,7 @@ def print_flush_root(this_rank, val, output_file='', root=0, output_folder='./',
     return None
         
 def print_flush_all(this_rank, val, output_file='', output_folder='./', save_stdout=True, print_terminal=False):
-    # I want the file name to be the name of the quantity, the val is the value of the quantity
+    # print and/or save the argument, val, for all ranks.
     if print_terminal:
         print("rank:", this_rank, val)
         
@@ -64,4 +65,23 @@ def print_flush_all(this_rank, val, output_file='', output_folder='./', save_std
             writer.writerow([this_rank ,val])
             
     sys.stdout.flush() 
-    return None        
+    return None     
+
+def create_summary(save_path, locals_dict, var_list=None, preset=None, verbose=True):
+
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+    f = open(os.path.join(save_path, 'summary.txt'), 'w')
+
+    print('============== PARAMETERS ==============')
+    for var_name in locals_dict:
+        try:
+            line = '{:<20}{}\n'.format(var_name, str(locals_dict[var_name]))
+            if verbose:
+                print(line)
+            f.write(line)
+        except:
+            pass
+    print('========================================')
+    f.close()
+    return None

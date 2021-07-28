@@ -29,7 +29,8 @@ warnings.filterwarnings("ignore")
 def generate_reconstructed_FL_signal(dev, use_simulation_sample, simulation_probe_cts,
                                      std_path, f_std, fitting_method, std_element_lines_roi, density_std_elements, 
                                      selfAb, recon_path, f_recon_grid, f_reconstructed_XRF_signal, f_reconstructed_XRT_signal,
-                                     theta_st, theta_end, n_theta,
+                                     theta_st, theta_end, n_theta, cont_from_last_theta,
+                                     this_theta_st_idx, this_theta_end_idx,
                                      data_path, f_XRT_data,
                                      this_aN_dic, element_lines_roi, n_line_group_each_element, 
                                      sample_size_n, sample_height_n, sample_size_cm, probe_energy,
@@ -85,8 +86,10 @@ def generate_reconstructed_FL_signal(dev, use_simulation_sample, simulation_prob
         n_theta = len(theta_ls) 
         #### Calculate the incident photon counts from the calibration data
         probe_cts = calibrate_incident_probe_intensity(std_path, f_std, fitting_method, std_element_lines_roi, density_std_elements, probe_energy) 
-        y2_true_handle.close()
-        
+    
+    theta_idx_ls = np.arange(this_theta_st_idx, this_theta_end_idx, 1)
+    this_theta_ls = theta_ls[this_theta_st_idx: this_theta_end_idx]
+    
     minibatch_ls_0 = tc.arange(n_ranks).to(dev) #dev
     n_batch = (sample_height_n * sample_size_n) // (n_ranks * minibatch_size) #scalar
      
@@ -126,17 +129,24 @@ def generate_reconstructed_FL_signal(dev, use_simulation_sample, simulation_prob
         channel_name_roi_ls = np.array(channel_name_roi_ls).astype("S5")       
         scaler_names = np.array(["place_holder", "us_dc", "ds_ic", "abs_ic"]).astype("S12")
         
-        with h5py.File(os.path.join(recon_path, f_reconstructed_XRF_signal +'.h5'), 'w') as d:
-            grp = d.create_group("exchange")
-            data = grp.create_dataset("data", shape=(n_lines, n_theta, sample_height_n, sample_size_n), dtype="f4")
-            elements = grp.create_dataset("elements", data = channel_name_roi_ls)
-            theta = grp.create_dataset("theta", data = theta_ls)
+        
+        if not cont_from_last_theta: # need to create the file if the current simulation starts from the first angle
+            if use_simulation_sample == True:
+                theta_ls_degree = -np.linspace(theta_st, theta_end, n_theta+1)[:-1]
+            else:
+                theta_ls_degree = y2_true_handle['exchange/theta'][...]     
+                    
+            with h5py.File(os.path.join(recon_path, f_reconstructed_XRF_signal +'.h5'), 'w') as d:
+                grp = d.create_group("exchange")
+                data = grp.create_dataset("data", shape=(n_lines, n_theta, sample_height_n, sample_size_n), dtype="f4")
+                elements = grp.create_dataset("elements", data = channel_name_roi_ls) 
+                theta = grp.create_dataset("theta", data = theta_ls_degree)
 
-        with h5py.File(os.path.join(recon_path, f_reconstructed_XRT_signal +'.h5'), 'w') as d:
-            grp = d.create_group("exchange")
-            data = grp.create_dataset("data", shape=(4, n_theta, sample_height_n, sample_size_n), dtype="f4")
-            elements = grp.create_dataset("elements", data = scaler_names)
-            theta = grp.create_dataset("theta", data = theta_ls)
+            with h5py.File(os.path.join(recon_path, f_reconstructed_XRT_signal +'.h5'), 'w') as d:
+                grp = d.create_group("exchange")
+                data = grp.create_dataset("data", shape=(4, n_theta, sample_height_n, sample_size_n), dtype="f4")
+                elements = grp.create_dataset("elements", data = scaler_names)
+                theta = grp.create_dataset("theta", data = theta_ls_degree)
             
         with h5py.File(os.path.join(recon_path, f_reconstructed_XRT_signal +'.h5'), 'r+') as d:
             d["exchange/data"][0,:,:,:] = 0
@@ -150,7 +160,7 @@ def generate_reconstructed_FL_signal(dev, use_simulation_sample, simulation_prob
         X = s["sample/densities"][...].astype(np.float32)
     X = tc.from_numpy(X).float() #cpu       
     
-    for theta_idx, theta in enumerate(theta_ls):
+    for theta_idx, theta in zip(theta_idx_ls ,this_theta_ls):
         stdout_options = {'root':0, 'output_folder': recon_path, 'save_stdout': False, 'print_terminal': True}
         timestr = str(datetime.datetime.today())     
         print_flush_root(rank, val=f"theta_idx: {theta_idx}, time: {timestr}", output_file='', **stdout_options)
@@ -184,12 +194,13 @@ def generate_reconstructed_FL_signal(dev, use_simulation_sample, simulation_prob
                          n_det, P_minibatch, det_size_cm, det_from_sample_cm, fl_sig_collecting_ratio)
             
             y1_hat, y2_hat = model() #y1_hat dimension: (n_lines, minibatch_size); y2_hat dimension: (minibatch_size,)
+            y1_hat = np.clip(y1_hat.detach().numpy(), 0, np.inf)
             y2_hat = np.exp(- y2_hat.detach().numpy())
             
             #### Use mpi to write the generated dataset to the hdf5 file
             with h5py.File(os.path.join(recon_path, f_reconstructed_XRF_signal +'.h5'), 'r+', driver='mpio', comm=comm) as d:
                 d["exchange/data"][:, theta_idx, minibatch_size * p // sample_size_n: minibatch_size * (p + 1) // sample_size_n, :] = \
-                np.reshape(y1_hat.detach().numpy(), (n_lines, minibatch_size // sample_size_n, -1)) 
+                np.reshape(y1_hat, (n_lines, minibatch_size // sample_size_n, -1)) 
                 
             comm.Barrier()    
                 ## shape of d["exchange/data"] = (n_lines, n_theta, sample_height_n, sample_size_n)
@@ -212,4 +223,5 @@ def generate_reconstructed_FL_signal(dev, use_simulation_sample, simulation_prob
     
                               
     ## It's important to close the hdf5 file hadle in the end of the reconstruction.
+    y2_true_handle.close()
     P_handle.close()       
