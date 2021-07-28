@@ -6,7 +6,7 @@ Created on Fri Nov 20 15:58:57 2020
 @author: panpanhuang
 """
 import os
-from FL_signal_reconstruction_fn_2 import generate_reconstructed_FL_signal
+from FL_signal_reconstruction_fn import generate_reconstructed_FL_signal
 import numpy as np
 from mpi4py import MPI
 import xraylib as xlib
