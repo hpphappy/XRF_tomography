@@ -67,7 +67,7 @@ def print_flush_all(this_rank, val, output_file='', output_folder='./', save_std
     sys.stdout.flush() 
     return None     
 
-def create_summary(save_path, locals_dict, var_list=None, preset=None, verbose=True):
+def create_summary(save_path, locals_dict, verbose=False):
 
     if not os.path.exists(save_path):
         os.makedirs(save_path)
