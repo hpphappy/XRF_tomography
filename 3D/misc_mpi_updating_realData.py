@@ -73,15 +73,15 @@ def create_summary(save_path, locals_dict, verbose=False):
         os.makedirs(save_path)
     f = open(os.path.join(save_path, 'summary.txt'), 'w')
 
-    print('============== PARAMETERS ==============')
+    f.write('============== PARAMETERS ==============')
     for var_name in locals_dict:
         try:
-            line = '{:<20}{}\n'.format(var_name, str(locals_dict[var_name]))
+            line = '{:<30}{}\n'.format(var_name, str(locals_dict[var_name]))
             if verbose:
                 print(line)
             f.write(line)
         except:
             pass
-    print('========================================')
+    f.write('========================================')
     f.close()
     return None

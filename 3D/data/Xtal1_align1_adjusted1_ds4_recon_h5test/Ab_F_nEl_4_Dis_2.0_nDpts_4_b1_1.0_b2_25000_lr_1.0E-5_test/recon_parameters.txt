@@ -1,6 +1,6 @@
 starting_epoch = 0
 n_epoch = 10
-n_ranks = 20
+n_ranks = 1
 element_line:
 [['Al' 'K']
  ['Si' 'K']
