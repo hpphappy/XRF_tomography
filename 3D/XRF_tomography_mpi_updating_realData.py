@@ -360,7 +360,9 @@ def reconstruct_jXRFT_tomography(f_recon_parameters, dev, use_std_calibation, pr
                         XRT_loss_n_batch[m] = XRT_loss_sum/n_ranks
                         total_loss_n_batch[m] = loss_sum/n_ranks
                
-                    del model  
+                    del model 
+                    tc.cuda.empty_cache()
+
                 if cuda_profiling and epoch >= warmup_iters:
                     tc.cuda.nvtx.range_pop()  # pop theta 
                 ## Prepare to bcast the updated X from rank0 to all ranks in order to calculate the LAC at the next obj. angle  
@@ -419,8 +421,9 @@ def reconstruct_jXRFT_tomography(f_recon_parameters, dev, use_std_calibation, pr
                 
             if cuda_profiling and epoch >= warmup_iters:    
                 tc.cuda.nvtx.range_pop() #pop epoch
-        
-        tc.cuda.cudart().cudaProfilerStop()
+
+        if cuda_profiling and epoch >= warmup_iters:
+            tc.cuda.cudart().cudaProfilerStop()
 
         ## It's important to close the hdf5 file hadle in the end of the reconstruction.
         P_handle.close()

@@ -21,8 +21,8 @@ warnings.filterwarnings("ignore")
 # Set the device
 #========================================================
 # stdout_options = {'output_folder': recon_path, 'save_stdout': False, 'print_terminal': True}
-# gpu_index = rank % 8
-gpu_index = 0
+gpu_index = rank % 8
+# gpu_index = 1
 if tc.cuda.is_available():  
     dev = tc.device('cuda:{}'.format(gpu_index))
     print("Process ", rank, "running on", dev)
@@ -292,7 +292,7 @@ params_3d_size_128 = {
                               'probe_energy': np.array([20.0]),                            
                               'n_epoch': 2,
                               'save_every_n_epochs': 1,
-                              'minibatch_size': 128*2, #In turns of number of strips
+                              'minibatch_size': 128*1, #In turns of number of strips
                               'b1': 1.5E-5,  # the regulizer coefficient of the XRT loss
                               'b2': 1.0,
                               'lr': 1.0E-3,        
@@ -745,7 +745,7 @@ params_3d_88_88_40_xtal1 = {
                               'fl_M': fl["M"]  # doesn't need to change
                              }
 
-params = params_3d_size_64
+params = params_3d_size_128
 
 if __name__ == "__main__": 
     
