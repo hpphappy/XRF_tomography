@@ -180,7 +180,7 @@ def reconstruct_jXRFT_tomography(f_recon_parameters, dev, use_std_calibation, pr
             else:
                 X = None
                 
-        # create the initial_uess in rank0 cpu
+        # create the initial_guess in rank0 cpu
         else:
             if rank == 0:
                 X = initialize_guess_3d("cpu", ini_kind, n_element, sample_size_n, sample_height_n, recon_path, f_recon_grid, f_initial_guess, init_const) #cpu         

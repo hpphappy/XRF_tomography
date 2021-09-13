@@ -21,7 +21,7 @@ warnings.filterwarnings("ignore")
 # Set the device
 #========================================================
 # stdout_options = {'output_folder': recon_path, 'save_stdout': False, 'print_terminal': True}
-gpu_index = rank % 8
+gpu_index = rank % 2
 # gpu_index = 1
 if tc.cuda.is_available():  
     dev = tc.device('cuda:{}'.format(gpu_index))
@@ -423,6 +423,62 @@ params_3d_44_44_20_xtal1 = {
                              }
 
 
+
+params_3d_44_44_20_xtal1_manual_I_probe = {
+                              'f_recon_parameters': 'recon_parameters.txt',  # The txt file that will save the reconstruction parameters
+                              'dev': dev,
+                              'use_std_calibation': False,
+                              'probe_intensity': 1.0E6,
+                              'std_path': './data/Xtal1/axo_std',
+                              'f_std': 'axo_std.h5',
+                              'std_element_lines_roi': np.array([['Ca', 'K'], ['Fe', 'K'], ['Cu', 'K']]),
+                              'density_std_elements': np.array([1.931, 0.504, 0.284])*1.0E-6,  # unit in g/cm^2
+                              'fitting_method':'XRF_roi_plus', # set to 'XRF_fits' , 'XRF_roi' or 'XRF_roi_plus'
+                              'selfAb': True,
+                              'cont_from_check_point': False,
+                              'use_saved_initial_guess': False,
+                              'ini_kind': 'const',  # choose from 'const', 'rand' or 'randn'
+                              'init_const': 0.0,
+                              'ini_rand_amp': 0.1,
+                              'recon_path': './data/Xtal1_align1_adjusted1_ds4_recon_h5test/Ab_T_nEl_4_Dis_2.0_nDpts_4_b1_1.0_b2_25000_lr_1.0E-3_manual_Iprobe_1e6',
+                              'f_initial_guess': 'initialized_grid_concentration',
+                              'f_recon_grid': 'grid_concentration',
+                              'data_path': './data/Xtal1_align1_adjusted1_ds4',    # the folder where the data file is in
+                              'f_XRF_data': 'xtal1_xrf-roi-plus',    # the aligned channel data file output from XRFtomo                  
+                              'f_XRT_data': 'xtal1_scalers',         # the aligned scaler data file output from XRFtomo
+                              'photon_counts_us_ic_dataset_idx':1,
+                              'photon_counts_ds_ic_dataset_idx':2,
+                              'XRT_ratio_dataset_idx':3,                # the index in the scalers dataset that stores the ratio of the transmitted photon counts
+                              'theta_ls_dataset_idx': 'exchange/theta', # the dataset in the channel data file that stores the object angle
+                              'channel_names': 'exchange/elements',     # the dataset in the channel data file that stores the cahnnel names
+                              'this_aN_dic': {"Al": 13, "Si": 14, "Fe": 26, "Cu": 29},
+                              'element_lines_roi': np.array([['Al', 'K'], ['Si', 'K'], ['Fe', 'K'], ['Cu', 'K']]),  # np.array([["Si, K"], ["Ca, K"]])
+                              'n_line_group_each_element': np.array([1, 1, 1, 1]),
+                              'sample_size_n': 44, 
+                              'sample_height_n': 20,
+                              'sample_size_cm': 0.007,                                    
+                              'probe_energy': np.array([10.0]),                             
+                              'n_epoch': 80,
+                              'save_every_n_epochs': 10,
+                              'minibatch_size': 44,
+                              'b1': 1.0,  # the regulizer coefficient of the XRT loss
+                              'b2': 25000.0,
+                              'lr': 1.0E-3,                          
+                              'manual_det_coord': True,
+                              'set_det_coord_cm': np.array([[0.70, -2.0, 0.70], [0.70, -2.0, -0.70], [-0.70, -2.0, 0.70], [-0.70, -2.0, -0.70]]), #used when manual_det_coord is True
+                              'det_on_which_side': "negative", # used when manual_det_coord is False
+                              'det_from_sample_cm': None, # used when manual_det_coord is False. The estimated spacing between the sample and the detector
+                              'det_ds_spacing_cm': None, # used when manual_det_coord is False. Set this value to the value of det_size_cm divided by a number
+                              'manual_det_area': True, # Set to False when using simulation object and data with use_std_calibation is False
+                              'set_det_area_cm2': 1.68,
+                              'det_size_cm': None, # used when manual_det_area is False. The estimated diameter of the sensor,
+                              'P_folder': 'data/P_array/sample_44_44_20_n/Dis_2.0_manual_dpts_4',              
+                              'f_P': 'Intersecting_Length_44_44_20',  # The output file name has det_size_cm and det_ds_spacing_cm and det_from_sample_cm 
+                              'fl_K': fl["K"], # doesn't need to change 
+                              'fl_L': fl["L"], # doesn't need to change                    
+                              'fl_M': fl["M"]  # doesn't need to change
+                             }
+
 params_3d_44_44_20_xtal1_2 = {
                               'f_recon_parameters': 'recon_parameters.txt',  # The txt file that will save the reconstruction parameters
                               'dev': dev,
@@ -745,7 +801,7 @@ params_3d_88_88_40_xtal1 = {
                               'fl_M': fl["M"]  # doesn't need to change
                              }
 
-params = params_3d_size_128
+params = params_3d_44_44_20_xtal1_manual_I_probe
 
 if __name__ == "__main__": 
     

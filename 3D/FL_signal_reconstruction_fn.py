@@ -76,12 +76,18 @@ def generate_reconstructed_FL_signal(dev, use_simulation_sample, simulation_prob
     
     
     if use_simulation_sample == True:
-        theta_ls = tc.from_numpy(-np.linspace(theta_st, theta_end, n_theta+1)[:-1] * np.pi / 180).float()  #unit: rad #cpu
+#         theta_ls = tc.from_numpy(-np.linspace(theta_st, theta_end, n_theta+1)[:-1] * np.pi / 180).float()  #unit: rad #cpu
+
+        y2_true_handle = h5py.File(os.path.join(data_path, f_XRT_data), 'r')  
+        #### Load all object angles from the XRT data ####
+        theta_ls = tc.from_numpy(y2_true_handle['exchange/theta'][...] * np.pi / 180).float()  #unit: rad #cpu
+        n_theta = len(theta_ls) 
+        #### Use the probe_cts from manually set simulation_probe_cts
         probe_cts = simulation_probe_cts
         
     else:
         y2_true_handle = h5py.File(os.path.join(data_path, f_XRT_data), 'r')  
-        #### Load all object angles from the experimental data ####
+        #### Load all object angles from the XRT data ####
         theta_ls = tc.from_numpy(y2_true_handle['exchange/theta'][...] * np.pi / 180).float()  #unit: rad #cpu
         n_theta = len(theta_ls) 
         #### Calculate the incident photon counts from the calibration data
@@ -131,10 +137,10 @@ def generate_reconstructed_FL_signal(dev, use_simulation_sample, simulation_prob
         
         
         if not cont_from_last_theta: # need to create the file if the current simulation starts from the first angle
-            if use_simulation_sample == True:
-                theta_ls_degree = -np.linspace(theta_st, theta_end, n_theta+1)[:-1]
-            else:
-                theta_ls_degree = y2_true_handle['exchange/theta'][...]     
+#             if use_simulation_sample == True:
+#                 theta_ls_degree = -np.linspace(theta_st, theta_end, n_theta+1)[:-1]
+#             else:
+            theta_ls_degree = y2_true_handle['exchange/theta'][...]     
                     
             with h5py.File(os.path.join(recon_path, f_reconstructed_XRF_signal +'.h5'), 'w') as d:
                 grp = d.create_group("exchange")

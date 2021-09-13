@@ -70,6 +70,52 @@ params_3d_44_44_20_xtal1_roi_plus = {'dev': "cpu",
                                      'fl_M': fl["M"]  # doesn't need to change
                                     }
 
+
+params_3d_44_44_20_xtal1_manual_I_probe = {'dev': "cpu",
+                                     'use_simulation_sample': True,
+                                     'simulation_probe_cts': 1.0E6, #used only when generate_simulation_sample is False 
+                                     'std_path': './data/Xtal1/axo_std', #used only when use_simulation_sample is False     
+                                     'f_std': 'axo_std.h5', #used only when use_simulation_sample is False   
+                                     'fitting_method':'XRF_roi_plus', # set to 'XRF_fits' , 'XRF_roi' or 'XRF_roi_plus',  #used only when use_simulation_sample is False  
+                                     'std_element_lines_roi': np.array([['Ca', 'K'], ['Fe', 'K'], ['Cu', 'K']]),  #used only when use_simulation_sample is False  
+                                     'density_std_elements': np.array([1.931, 0.504, 0.284])*1.0E-6,  # unit in g/cm^2,  #used only when use_simulation_sample is False 
+                                     'selfAb': True,
+                                     'recon_path':"./data/Xtal1_align1_adjusted1_ds4_recon_h5test/Ab_T_nEl_4_Dis_2.0_nDpts_4_b1_1.0_b2_25000_lr_1.0E-3_manual_Iprobe_1e6",
+                                     'f_recon_grid': "grid_concentration",
+                                     'f_reconstructed_XRF_signal':"reprojected_XRF_data",
+                                     'f_reconstructed_XRT_signal':"reprojected_XRT_data",
+                                     'theta_st': 0, #used only when generate_simulation_sample is True
+                                     'theta_end': 360, #used only when generate_simulation_sample is True
+                                     'n_theta': 200, #used only when generate_simulation_sample is True
+                                     'cont_from_last_theta': False,
+                                     'this_theta_st_idx':0,
+                                     'this_theta_end_idx':110,
+                                     'data_path': './data/Xtal1_align1_adjusted1_ds4',
+                                     'f_XRT_data': 'xtal1_scalers',
+                                     'this_aN_dic': {"Al": 13, "Si": 14, "Fe": 26, "Cu": 29}, 
+                                     'element_lines_roi': np.array([['Al', 'K'], ['Si', 'K'], ['Fe', 'K'], ['Cu', 'K']]),
+                                     'n_line_group_each_element': np.array([1, 1, 1, 1]),
+                                     'sample_size_n': 44, 
+                                     'sample_height_n': 20,
+                                     'sample_size_cm': 0.007,                                    
+                                     'probe_energy': np.array([10.0]),                                       
+                                     'minibatch_size': 44,                                     
+                                     'manual_det_coord': True,
+                                     'set_det_coord_cm': np.array([[0.70, -2.0, 0.70], [0.70, -2.0, -0.70], [-0.70, -2.0, 0.70], [-0.70, -2.0, -0.70]]),
+                                     'det_on_which_side': "negative",                                 
+                                     'manual_det_area': True,
+                                     'set_det_area_cm2': 1.68,
+                                     'det_size_cm': None, # The estimated diameter of the sensor; Used only when manual_det_area is False.
+                                     'det_from_sample_cm': None, # The estimated spacing between the sample and the detector; Used only when manual_det_area is False.
+                                     'det_ds_spacing_cm': None, # Set to the value of det_size_cm divided by a number; Used only when manual_det_area is False.
+                                     'solid_angle_adjustment_factor': 1.0, # Set to 1.0 when use_simulation_sample is False
+                                     'P_folder': 'data/P_array/sample_44_44_20_n/Dis_2.0_manual_dpts_4',              
+                                     'f_P': 'Intersecting_Length_44_44_20',  # The output file name has det_size_cm and det_ds_spacing_cm and det_from_sample_cm 
+                                     'fl_K': fl["K"], # doesn't need to change 
+                                     'fl_L': fl["L"], # doesn't need to change                    
+                                     'fl_M': fl["M"]  # doesn't need to change
+                                    }
+
 params_3d_44_44_20_Al_xtal1_roi_plus = {'dev': "cpu",
                                      'use_simulation_sample': False,
                                      'simulation_probe_cts': 1.0E7, #used only when generate_simulation_sample is False                                        
@@ -566,7 +612,7 @@ params_sample_size_256 = {'dev': "cpu",
                                     }
 
 
-params = params_sample_size_256
+params = params_3d_44_44_20_xtal1_manual_I_probe
 
 if __name__ == "__main__": 
     
