@@ -3,8 +3,6 @@
 *.pdf
 *.tiff
 *.h5
-!initialized_grid_concentration.h5
-!grid_concentration.h5
 *.sqlite
 *.qdrep
 *.output

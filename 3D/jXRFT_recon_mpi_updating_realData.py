@@ -21,7 +21,7 @@ warnings.filterwarnings("ignore")
 # Set the device
 #========================================================
 # stdout_options = {'output_folder': recon_path, 'save_stdout': False, 'print_terminal': True}
-gpu_index = rank % 2
+gpu_index = rank % 8
 # gpu_index = 1
 if tc.cuda.is_available():  
     dev = tc.device('cuda:{}'.format(gpu_index))
@@ -272,7 +272,7 @@ params_3d_size_128 = {
                               'ini_kind': 'const',  # choose from 'const', 'rand' or 'randn'
                               'init_const': 0.5,
                               'ini_rand_amp': 0.1,
-                              'recon_path': './data/size_128_recon/Ab_T_nEl_2_Dis_1.6_nDpts_5_b1_1.5E-5_b2_1.0_lr_1.0E-3',
+                              'recon_path': './data/size_128_recon/Ab_T_nEl_2_Dis_1.6_Dpts_5_b1_1.5E-5_b2_1.0_lr_1.0E-3_nG1_nRank16_nMini1',
                               'f_initial_guess': 'initialized_grid_concentration',
                               'f_recon_grid': 'grid_concentration',
                               'data_path': './data/size_128',    # the folder where the data file is in
@@ -327,7 +327,7 @@ params_3d_size_256 = {
                               'ini_kind': 'const',  # choose from 'const', 'rand' or 'randn'
                               'init_const': 0.5,
                               'ini_rand_amp': 0.1,
-                              'recon_path': './data/size_256_recon/Ab_T_nEl_2_Dis_1.6_nDpts_5_b1_1.5E-5_b2_1.0_lr_1.0E-3',
+                              'recon_path': './data/size_256_recon/Ab_T_nEl_2_Dis_1.6_nDpts_5_b1_1.5E-5_b2_1.0_lr_1.0E-3_nRank16_nMini1',
                               'f_initial_guess': 'initialized_grid_concentration',
                               'f_recon_grid': 'grid_concentration',
                               'data_path': './data/size_256',    # the folder where the data file is in
@@ -347,7 +347,7 @@ params_3d_size_256 = {
                               'probe_energy': np.array([20.0]),                            
                               'n_epoch': 2,
                               'save_every_n_epochs': 1,
-                              'minibatch_size': 256,
+                              'minibatch_size': 256*1,
                               'b1': 1.5E-5,  # the regulizer coefficient of the XRT loss
                               'b2': 1.0,
                               'lr': 1.0E-3,        
@@ -801,7 +801,7 @@ params_3d_88_88_40_xtal1 = {
                               'fl_M': fl["M"]  # doesn't need to change
                              }
 
-params = params_3d_44_44_20_xtal1_manual_I_probe
+params = params_3d_size_256
 
 if __name__ == "__main__": 
     
