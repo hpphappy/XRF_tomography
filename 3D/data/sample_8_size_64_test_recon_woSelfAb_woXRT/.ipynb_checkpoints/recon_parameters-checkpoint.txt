@@ -6,7 +6,7 @@ element_line:
  ['Ca' 'L']
  ['Sc' 'K']
  ['Sc' 'L']]
-b1 = 0.100000000
+b1 = 0.000000000
 b2 = 20000.000000000
 learning rate = 0.001000
 theta_st = -0.00
