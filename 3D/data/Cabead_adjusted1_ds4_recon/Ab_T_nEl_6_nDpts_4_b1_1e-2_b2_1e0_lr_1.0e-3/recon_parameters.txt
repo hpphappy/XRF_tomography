@@ -1,0 +1,21 @@
+starting_epoch = 0
+n_epochs = 100
+n_ranks = 2
+element_line:
+[['Si' 'K']
+ ['Ti' 'K']
+ ['Cr' 'K']
+ ['Fe' 'K']
+ ['Ni' 'K']
+ ['Ba' 'L']]
+b1 = 0.010000000
+b2 = 1.000000000
+learning rate = 0.001000
+theta_st = -3.14
+theta_end = 3.14
+n_theta = 181
+sample_size_n = 124
+sample_height_n = 32
+sample_size_cm = 0.02
+probe_energy_keV = 10.00
+incident_probe_cts = 2.98e+05

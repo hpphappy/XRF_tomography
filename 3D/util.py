@@ -219,7 +219,14 @@ def MakeFLlinesDictionary(this_aN_dic, probe_energy,
                           fl_line_groups = np.array(["K", "L", "M"]), fl_K = fl["K"], fl_L = fl["L"], fl_M = fl["M"],
                           group_lines = True):
 
-
+    """
+    Based on the given probe_energy, ouptut all the possible fluorescence line(s) into the output dictionary.
+    The output dictionary has 4 items: 
+    (1) energy of all possible fluorescence lines
+    (2) the intensity of the fluorescence signals if the density of the emitting element is 1 g.cm^{-3}
+    (3) the number of the fluoresence lines (K, L or M ...) for each element
+    (4) the numpy array contains the tuples of (element, line)
+    """
     element_ls = np.array(list(this_aN_dic.keys()))
     aN_ls = np.array(list(this_aN_dic.values()))
 
@@ -313,7 +320,14 @@ def MakeFLlinesDictionary_manual(element_lines_roi,
                                  sample_size_n, sample_size_cm,
                                  fl_line_groups = np.array(["K", "L", "M"]), fl_K = fl["K"], fl_L = fl["L"], fl_M = fl["M"]):
 
-
+    """
+    Given the probe_energy and the fluorescence lines of interests, output a dictionary.
+    The output dictionary has 4 items: 
+    (1) energy of all possible fluorescence lines
+    (2) the intensity of the fluorescence signals if the density of the emitting element is 1 g.cm^{-3}
+    (3) the number of the fluoresence lines (K, L or M ...) for each element
+    (4) the numpy array contains the tuples of (element, line)
+    """
     FL_all_elements_dic = {"(element_name, Line)": [], "fl_energy": np.array([]), "detected_fl_unit_concentration": np.array([]),
                            "n_line_group_each_element": np.array([]), "n_lines": None}
 
@@ -443,7 +457,7 @@ def trace_beam_z(z_s, x_s, y_s, z_d, x_d, y_d, d_z_ls):
         b2 = tc.tensor([[[d_z]] for d_z in d_z_ls])
         b = tc.cat((b1, b2), dim=1)
 
-        Z, LU = tc.solve(b, A)
+        Z = tc.linalg.solve(A, b)
         Z = np.array(Z[:,:-1].view(len(d_z_ls), 3))
 #         t = X[:,-1] 
     
@@ -461,7 +475,7 @@ def trace_beam_x(z_s, x_s, y_s, z_d, x_d, y_d, d_x_ls):
         b2 = tc.tensor([[[d_x]] for d_x in d_x_ls])
         b = tc.cat((b1, b2), dim=1)
 
-        X, LU = tc.solve(b, A)
+        X = tc.linalg.solve(A, b)
         X = np.array(X[:,:-1].view(len(d_x_ls), 3))
 #         t = Y[:,-1]
     
@@ -479,12 +493,13 @@ def trace_beam_y(z_s, x_s, y_s, z_d, x_d, y_d, d_y_ls):
         b2 = tc.tensor([[[d_y]] for d_y in d_y_ls])
         b = tc.cat((b1, b2), dim=1)
 
-        Y, LU = tc.solve(b, A)
+        Y = tc.linalg.solve(A, b)
         Y = np.array(Y[:,:-1].view(len(d_y_ls), 3))
 #         t = Z[:,-1]
     
     return Y
 
+### Divide the sample into layers for parallelleization and write the info of intersecting length to a .h5 file
 def intersecting_length_fl_detectorlet_3d_mpi_write_h5(n_ranks, rank, det_size_cm, det_from_sample_cm, det_ds_spacing_cm, sample_size_n, sample_size_cm, sample_height_n, P_folder, f_P):
     
     """
@@ -722,7 +737,8 @@ def intersecting_length_fl_detectorlet_3d_mpi_write_h5(n_ranks, rank, det_size_c
     
     return None
 
-
+### Divide the sample into strips intersected with the probe for parallelization
+####  and write the info of intersecting length to a .h5 file
 def intersecting_length_fl_detectorlet_3d_mpi_write_h5_2(n_ranks, minibatch_size, rank, det_size_cm, det_from_sample_cm, det_ds_spacing_cm, sample_size_n, sample_size_cm, sample_height_n, P_folder, f_P):
     
  
@@ -899,7 +915,9 @@ def intersecting_length_fl_detectorlet_3d_mpi_write_h5_2(n_ranks, minibatch_size
     
     return None
 
-
+### Divide the sample into strips intersected with the probe for parallelleization
+### and write the info of intersecting length to a .h5 file
+### Add the choice of setting which side the detector locates relative to the sample 
 def intersecting_length_fl_detectorlet_3d_mpi_write_h5_3(n_ranks, minibatch_size, rank, det_on_which_side, det_size_cm, det_from_sample_cm, det_ds_spacing_cm, sample_size_n, sample_size_cm, sample_height_n, P_folder, f_P):
     
  
@@ -1100,6 +1118,9 @@ def intersecting_length_fl_detectorlet_3d_mpi_write_h5_3(n_ranks, minibatch_size
     
     return None
 
+### Divide the sample into strips intersected with the probe for parallelleization
+### and write the info of intersecting length to a .h5 file
+### Add the choice of setting which side the detector locates relative to the sample and manually set the detecting points
 def intersecting_length_fl_detectorlet_3d_mpi_write_h5_3_manual(n_ranks, minibatch_size, rank, manual_det_coord, set_det_coord_cm, det_on_which_side,
                                                                 manual_det_area, det_size_cm, det_from_sample_cm, det_ds_spacing_cm, sample_size_n, 
                                                                 sample_size_cm, sample_height_n, P_folder, f_P):
@@ -1325,7 +1346,7 @@ def intersecting_length_fl_detectorlet_3d_mpi_write_h5_3_manual(n_ranks, minibat
     
     return None
 
-
+### Write the info of intersecting length to a .npy file
 def intersecting_length_fl_detectorlet_3d(det_size_cm, det_from_sample_cm, det_ds_spacing_cm, sample_size_n, sample_size_cm, sample_height_n, P_folder, f_P):
     """
     Parameters

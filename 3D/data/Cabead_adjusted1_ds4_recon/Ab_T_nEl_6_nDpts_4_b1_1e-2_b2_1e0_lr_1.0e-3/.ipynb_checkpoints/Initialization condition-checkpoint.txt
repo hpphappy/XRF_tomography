@@ -1,0 +1,2 @@
+The initilized_grid_concentration.h5 file is the reconstructed result in the folder "Ab_F_nEl_6_nDpts_4_b1_0.0_lr_1.0E-3"
+after 100 epochs.

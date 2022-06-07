@@ -3,6 +3,10 @@
 *.pdf
 *.tiff
 *.h5
+*.h50
+*.h51
+*.h52
+*.h53
 *.sqlite
 *.qdrep
 *.output
@@ -14,3 +18,8 @@ xtal1_scalers
 xtal1_xrf-fits
 xtal1_xrf-roi
 xtal1_xrf-roi-plus
+cabead_scalers
+cabead_xrf-fits
+cabead_xrf-roi
+cabead_xrf-roi-plus
+

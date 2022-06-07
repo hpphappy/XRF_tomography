@@ -7,7 +7,7 @@ import h5py
 import xraylib as xlib
 import xraylib_np as xlib_np
 
-from data_generation_fns_mpi_updating_realData import find_lines_roi_idx_from_dataset
+from util import find_lines_roi_idx_from_dataset
 from Atomic_number import AN
 
 fl = {"K": np.array([xlib.KA1_LINE, xlib.KA2_LINE, xlib.KA3_LINE, xlib.KB1_LINE, xlib.KB2_LINE,
@@ -36,5 +36,3 @@ def calibrate_incident_probe_intensity(std_path, f_std, fitting_method, std_elem
     I_0_cal_ave = np.average(I_0_cal)
 
     return I_0_cal_ave
-
-

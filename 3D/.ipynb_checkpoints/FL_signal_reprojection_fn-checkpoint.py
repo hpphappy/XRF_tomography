@@ -26,7 +26,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
     
-def generate_reconstructed_FL_signal(dev, use_simulation_sample, simulation_probe_cts,
+def generate_reconstructed_FL_signal(dev, use_simulation_sample, simulation_probe_cts, probe_att,
                                      std_path, f_std, fitting_method, std_element_lines_roi, density_std_elements, 
                                      selfAb, recon_path, f_recon_grid, f_reconstructed_XRF_signal, f_reconstructed_XRT_signal,
                                      theta_st, theta_end, n_theta, cont_from_last_theta,
@@ -37,7 +37,7 @@ def generate_reconstructed_FL_signal(dev, use_simulation_sample, simulation_prob
                                      minibatch_size,
                                      manual_det_coord, set_det_coord_cm, det_on_which_side,
                                      manual_det_area, set_det_area_cm2, det_size_cm, det_from_sample_cm,
-                                     det_ds_spacing_cm, solid_angle_adjustment_factor,
+                                     det_ds_spacing_cm, signal_attenuation_factor,
                                      P_folder, f_P, fl_K, fl_L, fl_M):
     
     comm = MPI.COMM_WORLD
@@ -100,24 +100,34 @@ def generate_reconstructed_FL_signal(dev, use_simulation_sample, simulation_prob
     n_batch = (sample_height_n * sample_size_n) // (n_ranks * minibatch_size) #scalar
      
     if manual_det_area == True:
-#         fl_sig_collecting_ratio = set_det_area_cm2 / (4 * np.pi * det_from_sample_cm**2)
-        fl_sig_collecting_ratio = 1.0
-    
+#         det_solid_angle_ratio = det_area_cm2 / (4 * np.pi * det_from_sample_cm**2)
+        det_solid_angle_ratio = 1.0
+        signal_attenuation_factor = 1.0
+        
     else:
+        #### det_solid_angle_ratio is used only for simulated dataset (use_std_calibation: False, manual_det_area: False, manual_det_coord: False)
+        #### in which the incident probe intensity is not calibrated with the axo_std file.
+        #### The simulated collected XRF photon number is estimated by multiplying the generated
+        #### fluorescence photon number by "det_solid_angle_ratio" to account for the limited solid angle and the detecting efficiency of the detector
+        
 #         #### Calculate the detecting solid angle covered by the area of the spherical cap covered by the detector #### 
+#         #### OPTION A: estimate the solid angle by the curved surface
 #         # The distance from the sample to the boundary of the detector
-#         r = (det_from_sample_cm**2 + (det_size_cm/2)**2)**0.5   
+#         r = (det_from_sample_cm**2 + (det_dia_cm/2)**2)**0.5   
 #         # The height of the cap
 #         h =  r - det_from_sample_cm
 #         # The area of the cap area
-#         fl_sig_collecting_cap_area = np.pi*((det_size_cm/2)**2 + h**2)
+#         fl_sig_collecting_cap_area = np.pi*((det_dia_cm/2)**2 + h**2)
 #         # The ratio of the detecting solid angle / full soilid angle
-#         fl_sig_collecting_ratio = fl_sig_collecting_cap_area / (4*np.pi*r**2)  
+#         det_solid_angle_ratio = fl_sig_collecting_cap_area / (4*np.pi*r**2)
 
-#         fl_sig_collecting_ratio = ((np.pi * (det_size_cm/2)**2) / det_from_sample_cm**2)/(4*np.pi)
-
-        fl_sig_collecting_ratio = 1.0
-        solid_angle_adjustment_factor = ((np.pi * (det_size_cm/2)**2) / det_from_sample_cm**2)/(4*np.pi)
+        #### OPTION B: estimate the solid angle by the flat surface
+        det_solid_angle_ratio = (np.pi * (det_size_cm/2)**2) / (4*np.pi * det_from_sample_cm**2)
+        
+        
+        #### signal_attenuation_factor is used to account for other factors that cause the attenuation of the XRF
+        #### exept the limited solid angle and self-absorption
+        signal_attenuation_factor = 1.0
     
     P_save_path = os.path.join(P_folder, f_P)   
     P_handle = h5py.File(P_save_path + ".h5", 'r')   
@@ -195,9 +205,9 @@ def generate_reconstructed_FL_signal(dev, use_simulation_sample, simulation_prob
             model = PPM(dev, selfAb, lac, X, p, n_element, n_lines, FL_line_attCS_ls,
                          detected_fl_unit_concentration, n_line_group_each_element,
                          sample_height_n, minibatch_size, sample_size_n, sample_size_cm,
-                         probe_energy, probe_cts, probe_attCS_ls,
-                         theta, solid_angle_adjustment_factor,
-                         n_det, P_minibatch, det_size_cm, det_from_sample_cm, fl_sig_collecting_ratio)
+                         probe_energy, probe_cts, probe_att, probe_attCS_ls,
+                         theta, signal_attenuation_factor,
+                         n_det, P_minibatch, det_size_cm, det_from_sample_cm, det_solid_angle_ratio)
             
             y1_hat, y2_hat = model() #y1_hat dimension: (n_lines, minibatch_size); y2_hat dimension: (minibatch_size,)
             y1_hat = np.clip(y1_hat.detach().numpy(), 0, np.inf)

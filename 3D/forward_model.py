@@ -14,9 +14,9 @@ class PPM(nn.Module):
     def __init__(self, dev, selfAb, lac, grid_concentration, p, n_element, n_lines, 
                  FL_line_attCS_ls, detected_fl_unit_concentration, n_line_group_each_element,
                  sample_height_n, minibatch_size, sample_size_n, sample_size_cm,          
-                 probe_energy, probe_cts, probe_attCS_ls,
-                 theta, solid_angle_adjustment_factor,
-                 n_det, P_minibatch, det_size_cm, det_from_sample_cm, fl_sig_collecting_ratio):
+                 probe_energy, probe_cts, probe_att, probe_attCS_ls,
+                 theta, signal_attenuation_factor,
+                 n_det, P_minibatch, det_dia_cm, det_from_sample_cm, det_solid_angle_ratio):
         """
         Initialize the attributes of PPM. 
         """
@@ -44,18 +44,19 @@ class PPM(nn.Module):
         self.xp = self.init_xp() # initialize the values of the minibatch      
         self.probe_energy = probe_energy  
         self.probe_cts = probe_cts
+        self.probe_att = probe_att
         self.probe_attCS_ls =  probe_attCS_ls
         self.probe_before_attenuation_flat = self.init_probe()        
               
         self.theta = theta
-        self.solid_angle_adjustment_factor = solid_angle_adjustment_factor
+        self.signal_attenuation_factor = signal_attenuation_factor
              
         self.n_det = n_det
         self.P_minibatch = P_minibatch 
-        self.det_size_cm = det_size_cm
+        self.det_dia_cm = det_dia_cm
         self.det_from_sample_cm = det_from_sample_cm
         self.SA_theta = self.init_SA_theta()
-        self.fl_sig_collecting_ratio = fl_sig_collecting_ratio
+        self.det_solid_angle_ratio = det_solid_angle_ratio
         
         
     def init_xp(self):
@@ -71,8 +72,9 @@ class PPM(nn.Module):
             voxel_idx_offset = self.p * self.n_voxel_minibatch        
             
             # clamp the index after substrcting the offset, so that all 0 indicies remains 0 (becomes negative if without clamping, and cause errors)
-            att_exponent = tc.stack([self.lac[:,:, tc.clamp((self.P_minibatch[m,0] - voxel_idx_offset), 0, self.n_voxel_minibatch).to(dtype=tc.long), self.P_minibatch[m,1].to(dtype=tc.long)]
-                                     * self.P_minibatch[m,2].repeat(self.n_element, self.n_lines, 1) for m in range(self.n_det)])
+            att_exponent = tc.stack([self.lac[:,:, tc.clamp((self.P_minibatch[m,0] - voxel_idx_offset), 0, self.n_voxel_minibatch).to(dtype=tc.long),\
+                                              self.P_minibatch[m,1].to(dtype=tc.long)]\
+                                    * self.P_minibatch[m,2].repeat(self.n_element, self.n_lines, 1) for m in range(self.n_det)])
             
             # lac, dim = [n_element, n_lines, n_voxel_minibatch, n_voxel]
             # att_exponent, dim = [n_det, n_element, n_lines, n_source, n_dia_length]
@@ -115,14 +117,17 @@ class PPM(nn.Module):
         concentration_map_minibatch_rot_flat = concentration_map_minibatch_rot.view(self.n_element, self.n_voxel_minibatch)
         line_idx = 0
         for j in range(self.n_element):
-            ## for step 1
-            lac_single = concentration_map_minibatch_rot[j] * self.probe_attCS_ls[j]
-            lac_acc = tc.cumsum(lac_single, axis=1) # dim = (minibatch_size, sample_size_n)
-            lac_acc = tc.cat((tc.zeros((self.minibatch_size, 1), device=self.dev), lac_acc), dim = 1) # dim = (minibatch_size, sample_size_n + 1)
-            att_exponent_acc = lac_acc * (self.sample_size_cm / self.sample_size_n)    
-            att_exponent_acc_map += att_exponent_acc
+            ## step 1: calculate the attenuation exponent at each voxel
+            if self.probe_att == True:
+                lac_single = concentration_map_minibatch_rot[j] * self.probe_attCS_ls[j]
+                lac_acc = tc.cumsum(lac_single, axis=1) # dim = (minibatch_size, sample_size_n)
+                lac_acc = tc.cat((tc.zeros((self.minibatch_size, 1), device=self.dev), lac_acc), dim = 1) # dim = (minibatch_size, sample_size_n + 1)
+                att_exponent_acc = lac_acc * (self.sample_size_cm / self.sample_size_n)    
+                att_exponent_acc_map += att_exponent_acc
             
-            ## for step 2
+            else:
+                att_exponent_acc_map = tc.zeros(self.minibatch_size, self.sample_size_n+1).to(self.dev)
+            ## step 2: calculate the fluorescence signal generated at each voxel
             fl_unit = self.detected_fl_unit_concentration[line_idx:line_idx + self.n_line_group_each_element[j]]            
             ## FL signal over the current elemental lines for each voxel
             fl_map = tc.stack([concentration_map_minibatch_rot_flat[j] * fl_unit_single_line for fl_unit_single_line in fl_unit])            
@@ -140,7 +145,7 @@ class PPM(nn.Module):
         fl_signal_SA_theta = fl_signal_SA_theta.view(self.n_lines, self.minibatch_size, self.sample_size_n)
         fl_signal_SA_theta = tc.sum(fl_signal_SA_theta, axis=-1)
         
-        fl_signal_SA_theta = fl_signal_SA_theta * self.fl_sig_collecting_ratio * self.solid_angle_adjustment_factor
+        fl_signal_SA_theta = fl_signal_SA_theta * self.det_solid_angle_ratio * self.signal_attenuation_factor
          
         output1 = fl_signal_SA_theta
 #         output2 = self.probe_cts * transmission_theta

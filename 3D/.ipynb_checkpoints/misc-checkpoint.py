@@ -49,11 +49,11 @@ def print_flush_all(this_rank, val, output_file='', output_folder='./', save_std
     sys.stdout.flush() 
     return None     
 
-def create_summary(save_path, locals_dict, verbose=False):
+def create_summary(save_path, locals_dict, fname="summary.txt", verbose=False):
 
     if not os.path.exists(save_path):
         os.makedirs(save_path)
-    f = open(os.path.join(save_path, 'summary.txt'), 'w')
+    f = open(os.path.join(save_path, fname), 'w')
 
     f.write('============== PARAMETERS ==============\n')
     for var_name in locals_dict:
