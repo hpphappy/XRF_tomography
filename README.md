@@ -1,6 +1,5 @@
 # XRF_tomography
 
-To generate simulated data of X-ray fluorescence tomography, choose one set of parameters in 3D/create_XRF_data.py and execute it. 
-To generate simulated data of X-ray transmission tomography, choose one set of parameters in 3D/create_XRT_data.py and execute it.
-
-MPI is up and running. Please choose the device (CPU/GPU) in 3D/jXRFT_recon_mpi_updating_realData.py and execute it.
+The main function for reconstruction is in `XRF_tomography.py`.
+Before running a reconstruction, please change the parameters in `P_cal.py` and execute the file to calculate the intersecting between the emitted fluorescence signal path and the object.  
+You can start with modifying the parameters `JXRFT_recon_simu.py` or `JXRFT_recon_cabead.py` for simulated and experimental data and execute the file for testing the reconstruction.
