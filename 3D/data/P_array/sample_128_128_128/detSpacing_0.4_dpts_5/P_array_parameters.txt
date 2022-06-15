@@ -1,6 +1,0 @@
-det_size_cm = 0.900000
-det_from_sample_cm = 1.600000
-det_ds_spacing_cm = 0.400000
-sample_size_n = 128.000000
-sample_size_cm = 0.010000
-sample_height_n = 128.000000

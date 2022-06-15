@@ -1,4 +1,0 @@
-0,"{'(element_name, Line)': array([['Ca', 'K'],
-       ['Ca', 'L'],
-       ['Sc', 'K'],
-       ['Sc', 'L']], dtype='<U2'), 'fl_energy': array([3.72645881, 0.33630868, 4.13132326, 0.39404391]), 'detected_fl_unit_concentration': array([3.00225145e-04, 2.54702887e-07, 3.77164143e-04, 1.71068821e-06]), 'n_line_group_each_element': array([2., 2.]), 'n_lines': 4}"

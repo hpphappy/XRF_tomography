@@ -1,0 +1,63 @@
+============== PARAMETERS ==============
+f_recon_parameters                      recon_parameters.txt
+dev                                     cuda:0
+use_std_calibation                      True
+probe_intensity                         None
+std_path                                ./data/Cabead/axo_std
+f_std                                   axo_std.mda.h5
+std_element_lines_roi                   [['Ca' 'K']
+ ['Fe' 'K']
+ ['Cu' 'K']]
+density_std_elements                    [1.931e-06 5.040e-07 2.840e-07]
+fitting_method                          XRF_roi_plus
+selfAb                                  False
+cont_from_check_point                   False
+use_saved_initial_guess                 False
+ini_kind                                const
+init_const                              0.0
+ini_rand_amp                            0.1
+recon_path                              ./data/Cabead_adjusted1_ds3_recon/Ab_F_nEl_6_nDpts_3_b1_1e4_b2_1e0_lr_1.0e-3
+f_initial_guess                         initialized_grid_concentration
+f_recon_grid                            grid_concentration
+data_path                               ./data/Cabead_adjusted1_ds4
+f_XRF_data                              cabead_xrf-fits
+f_XRT_data                              cabead_scalers
+scaler_counts_us_ic_dataset_idx         18
+scaler_counts_ds_ic_dataset_idx         11
+XRT_ratio_dataset_idx                   21
+theta_ls_dataset                        exchange/theta
+channel_names                           exchange/elements
+this_aN_dic                             {'Si': 14, 'Ti': 22, 'Cr': 24, 'Fe': 26, 'Ni': 28, 'Ba': 56}
+element_lines_roi                       [['Si' 'K']
+ ['Ti' 'K']
+ ['Cr' 'K']
+ ['Fe' 'K']
+ ['Ni' 'K']
+ ['Ba' 'L']]
+n_line_group_each_element               [1 1 1 1 1 1]
+sample_size_n                           124
+sample_height_n                         32
+sample_size_cm                          0.0248
+probe_energy                            [10.]
+n_epochs                                200
+save_every_n_epochs                     5
+minibatch_size                          124
+b1                                      10000.0
+b2                                      1.0
+lr                                      0.001
+manual_det_coord                        True
+set_det_coord_cm                        [[ 0.7   1.69  0.7 ]
+ [-0.7   1.69  0.7 ]
+ [-0.7   1.69 -0.7 ]]
+det_on_which_side                       positive
+det_from_sample_cm                      None
+det_ds_spacing_cm                       None
+manual_det_area                         True
+det_area_cm2                            1.68
+det_dia_cm                              None
+P_folder                                data/P_array/sample_124_124_32/Dis_1.69_manual_dpts_3
+f_P                                     Intersecting_Length_124_124_32
+fl_K                                    [ -3  -2  -1  -6 -11  -5 -13  -8]
+fl_L                                    [ -90  -89  -63  -95  -34  -33 -102  -91  -98  -36  -35  -94  -62]
+fl_M                                    [-207 -206 -187]
+========================================

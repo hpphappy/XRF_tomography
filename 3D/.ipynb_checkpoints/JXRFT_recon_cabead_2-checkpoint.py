@@ -111,7 +111,7 @@ params_124_124_32_cabead_2 = {
                               'density_std_elements': np.array([1.931, 0.504, 0.284])*1.0E-6, 
                               'fitting_method':'XRF_roi_plus',
                               'selfAb': False,
-                              'cont_from_check_point': True,
+                              'cont_from_check_point': False,
                               'use_saved_initial_guess': False,
                               'ini_kind': 'const', 
                               'init_const': 0.0,
